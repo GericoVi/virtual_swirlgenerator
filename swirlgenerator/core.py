@@ -134,15 +134,13 @@ class Input:
                     self.yNumCells = int(meshDefinitions.get('y_num_cells'))
                 
                 else:
-                    raise NotImplementedError()
+                    raise NotImplementedError("Specified inlet shape not valid")
 
             # Catch errors and print appropriate helpful error messages
             except KeyError:
                 raise KeyError(f"Non-optional geometry/mesh parameters are missing in file {configFile}")
             except ValueError:
                 raise ValueError("Invalid values defined for mesh/geometry")
-            except NotImplementedError:
-                NotImplementedError("Specified inlet shape not valid")
 
             # Optional parameters
             if ('z_side' in meshDefinitions):
