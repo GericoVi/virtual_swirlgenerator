@@ -10,6 +10,22 @@
 import gmsh
 import core as sg
 
+def testDomain(InputData: sg.Input, meshfilename, showmesh=False):
+    '''
+    Wrapper function which calls the correct function depending on the inlet shape specified
+    - InputData - Input object from core.py, containing geometry and mesh properties
+    - meshfilename - the filename's extension will determine what format to write the mesh
+    - showmesh - flag for showing the mesh using the gmsh gui, not recommended for large meshes
+    '''
+
+    # Dictionary to map inlet shape to correct function
+    domains = {'circle': simpleCylinder, 'rect': simpleBox}
+
+    # Call appropriate function using handle
+    func = domains.get(InputData.shape)
+    func(InputData, meshfilename, showmesh)
+
+
 def simpleBox(InputData: sg.Input, meshfilename, showmesh=False):
     '''
     Generates a simple 3D rectangular geometry and mesh
