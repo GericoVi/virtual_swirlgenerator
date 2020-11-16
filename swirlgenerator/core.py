@@ -62,11 +62,13 @@ class Input:
         # Intiailise all possible variables first
         self.filename = None
         self.format = None
+        self.shape = None
+        self.radius = None
+        self.curveNumCells = None
+        self.radialNumCells = None
         self.xSide = None
         self.ySide = None
-        self.radius = None
         self.zSide = None
-        self.shape = None
         self.xNumCells = None
         self.yNumCells = None
         self.zNumCells = None
@@ -114,33 +116,33 @@ class Input:
             except:
                 raise KeyError("Shape of inlet face must be specified")
 
-            # Get necessary inputs for inlet shape
-            if self.shape == 'circle':
-                try:
+            try:
+                # Get necessary inputs for inlet shape
+                if self.shape == 'circle':
+                    # Get circle radius
                     self.radius = float(meshDefinitions.get('radius'))
-                except KeyError:
-                    raise KeyError("Radius of circular inlet needs to be defined")
-                except ValueError:
-                    raise ValueError("Invalid value defined for inlet radius")
-            elif self.shape == 'rect':
-                try:
+                    # Get mesh density
+                    self.curveNumCells = int(meshDefinitions.get('quadrant_num_cells'))
+                    self.radialNumCells = int(meshDefinitions.get('radial_num_cells'))
+                    
+                elif self.shape == 'rect':
+                    # Get side lengths
                     self.xSide = float(meshDefinitions.get('x_side'))
                     self.ySide = float(meshDefinitions.get('y_side'))
-                except KeyError:
-                    raise KeyError("Side lengths of rectangular inlet need to be defined")
-                except ValueError:
-                    raise ValueError("Invalid values defined for side lengths")
-            else:
-                raise NotImplementedError("Specified inlet shape not valid")
+                    # Get mesh density
+                    self.xNumCells = int(meshDefinitions.get('x_num_cells'))
+                    self.yNumCells = int(meshDefinitions.get('y_num_cells'))
+                
+                else:
+                    raise NotImplementedError()
 
-            # Get mesh density
-            try:
-                self.xNumCells = int(meshDefinitions.get('x_num_cells'))
-                self.yNumCells = int(meshDefinitions.get('y_num_cells'))
+            # Catch errors and print appropriate helpful error messages
             except KeyError:
-                raise KeyError(f"Non-optional mesh parameters are missing in file {configFile}")
+                raise KeyError(f"Non-optional geometry/mesh parameters are missing in file {configFile}")
             except ValueError:
-                raise ValueError(f"Invalid values defined for mesh parameters")
+                raise ValueError("Invalid values defined for mesh/geometry")
+            except NotImplementedError:
+                NotImplementedError("Specified inlet shape not valid")
 
             # Optional parameters
             if ('z_side' in meshDefinitions):
