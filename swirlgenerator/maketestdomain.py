@@ -23,83 +23,58 @@ def simpleBox(InputData: sg.Input, meshfilename, showmesh=False):
 
     gmsh.initialize()
 
-    # Get vertices of box
-    vertices = [[0,0,0], [InputData.xSide,0,0], [InputData.xSide,InputData.ySide,0], [0,InputData.ySide,0], 
-                [0,0,InputData.zSide], [InputData.xSide,0,InputData.zSide], [InputData.xSide,InputData.ySide,InputData.zSide], [0,InputData.ySide,InputData.zSide]] 
+    # Get vertices of face
+    vertices = [[InputData.xSide/2, InputData.ySide/2], [InputData.xSide/2, -InputData.ySide/2], [-InputData.xSide/2, -InputData.ySide/2], [-InputData.xSide/2, InputData.ySide/2]] 
 
     # Add a new geometry model
     gmsh.model.add("box")
 
     # Define the points of the box
-    points = [gmsh.model.geo.addPoint(point[0],point[1],point[2]) for point in vertices]
+    points = [gmsh.model.geo.addPoint(point[0],point[1],0) for point in vertices]
 
     # Define the lines between the points - Needs to be done in a certain order for later
     lines = []
-    for i in range(4):
-        # Lines in first square face
-        lines.append(gmsh.model.geo.addLine(points[i], points[i+1]) if (i != 3) else gmsh.model.geo.addLine(points[i], points[i-3]))  
-        
-    for i in range(4,8):
-        # Lines in second square face
-        lines.append(gmsh.model.geo.addLine(points[i], points[i+1]) if (i != 7) else gmsh.model.geo.addLine(points[i], points[i-3]) )
+    # Define the lines for the rectangular face
+    lines.append(gmsh.model.geo.addLine(points[0],points[1]))
+    lines.append(gmsh.model.geo.addLine(points[1],points[2]))
+    lines.append(gmsh.model.geo.addLine(points[2],points[3]))
+    lines.append(gmsh.model.geo.addLine(points[3],points[0]))
 
-    for i in range(4):
-        # Lines connecting two square faces
-        lines.append(gmsh.model.geo.addLine(points[i], points[i+4]))
+    # Define the loop around the rectangle
+    loop = gmsh.model.geo.addCurveLoop(lines)
 
-    # Define the curve loops of lines 
-    loops = []
-    # Loops for square faces
-    loops.append(gmsh.model.geo.addCurveLoop(lines[0:4]))
-    loops.append(gmsh.model.geo.addCurveLoop(lines[4:8]))
-    # Loops for faces aloing box length - order of points within lines are important, so need negative signs when going 'backwards' along a line
-    for i in range(4):
-        loops.append(gmsh.model.geo.addCurveLoop([lines[i], (lines[i+9] if (i != 3) else lines[8]), -lines[i+4], -lines[i+8]]))
-
-    # Define plane surfaces with these curve loops
-    surfaces = [gmsh.model.geo.addPlaneSurface([loop]) for loop in loops]
-
-    # Define a 'surface loop' then use this to define a volume
-    surfLoop = gmsh.model.geo.addSurfaceLoop(surfaces)
-    vol = gmsh.model.geo.addVolume([surfLoop])
-
-    print('Defining mesh...')
-
-    # Define a transfinite(uniform) mesh on the lines
-    for i in range(len(lines)):
-        if (i > 7):
-            numCells = InputData.zNumCells
-        elif (i % 2 == 0):
-            numCells = InputData.xNumCells
-        else:
-            numCells = InputData.yNumCells
-
-        gmsh.model.geo.mesh.setTransfiniteCurve(lines[i], numCells+1)   # Gmsh defined meshes with points rather than cells
-
-    # Define transfinite mesh on surfaces
-    [gmsh.model.geo.mesh.setTransfiniteSurface(surface) for surface in surfaces]
+    # Define rectangular surface 
+    surface = gmsh.model.geo.addPlaneSurface([loop])
 
     # Recombine triangular mesh into quadrilaterals
-    [gmsh.model.geo.mesh.setRecombine(2, surface) for surface in surfaces]
+    gmsh.model.geo.mesh.setRecombine(2, surface)
 
-    # Define the volume as a transfinite mesh also
-    gmsh.model.geo.mesh.setTransfiniteVolume(vol)
+    # Define a transfinite mesh on the lines
+    [gmsh.model.geo.mesh.setTransfiniteCurve(line, InputData.xNumCells+1) for line in [lines[1],lines[3]]]
+    [gmsh.model.geo.mesh.setTransfiniteCurve(line, InputData.yNumCells+1) for line in [lines[0],lines[2]]]
 
-    # Before meshing, the CAD entities created needs to e synchronised with the GMsh model
-    gmsh.model.geo.synchronize()
+    # Define the surface as transfinite - so the 2D mesh is also structured
+    gmsh.model.geo.mesh.setTransfiniteSurface(surface)
 
+    # Extrude this mesh in the z direction to get the duct
+    gmsh.model.geo.extrude([[2, surface]], 0, 0, InputData.zSide, numElements=[InputData.zNumCells], recombine=True)
 
-    # Set (2D) Physical groups on the geometry faces and name them so boundary conditions can be defined on them
-    pSurfaces = [gmsh.model.addPhysicalGroup(2, [surfaces[0]])]
-    pSurfaces.append(gmsh.model.addPhysicalGroup(2, [surfaces[1]]))
-    pSurfaces.append(gmsh.model.addPhysicalGroup(2, surfaces[2:]))
+    # Set physical groups for the surfaces so that boundary conditions can be defined on them - surface tags found from looking at the generated geometry
+    pSurfaces = [gmsh.model.addPhysicalGroup(2, [1])]
+    pSurfaces.append(gmsh.model.addPhysicalGroup(2, [26]))
+    pSurfaces.append(gmsh.model.addPhysicalGroup(2, [13,17,21,25]))
+
+    # Name the physical surfaces for applying boundary conditions
     gmsh.model.setPhysicalName(2, pSurfaces[0], "inlet")
     gmsh.model.setPhysicalName(2, pSurfaces[1], "outlet")
     gmsh.model.setPhysicalName(2, pSurfaces[2], "walls")
 
     # Set 3D Physical group for domain volume
-    pVol = gmsh.model.addPhysicalGroup(3, [vol])
-    gmsh.model.setPhysicalName(3, pVol, "Domain")
+    pVol = gmsh.model.addPhysicalGroup(3, [1])
+    gmsh.model.setPhysicalName(3, pVol, "domain")
+
+    # Before meshing, the CAD entities created needs to e synchronised with the GMsh model
+    gmsh.model.geo.synchronize()
 
     # Generate 3D mesh
     print('Generating mesh...')
@@ -137,6 +112,10 @@ def simpleCylinder(InputData: sg.Input, meshfilename, showmesh=False):
     pts = [[0,0],                                                                                       # Mid point for creating the circular arcs
             [d/2*cos, d/2*cos], [d/2*cos, -d/2*cos], [-d/2*cos, -d/2*cos], [-d/2*cos, d/2*cos],         # Corners of inner square region
             [d*cos, d*cos], [d*cos, -d*cos], [-d*cos, -d*cos], [-d*cos, d*cos]]                         # Points on the circle in line with inner square corners
+
+    # Add a new geometry model
+    gmsh.model.add("cylinder")
+
     # Define the points in the gmsh geometry
     points = [gmsh.model.geo.addPoint(point[0],point[1],0) for point in pts]
 
@@ -182,7 +161,7 @@ def simpleCylinder(InputData: sg.Input, meshfilename, showmesh=False):
     # Define the surface as transfinite - so the 2D mesh is also structured
     [gmsh.model.geo.mesh.setTransfiniteSurface(surface) for surface in surfaces]
 
-    # Make din and tag pairs for extrusion
+    # Make dim and tag pairs for extrusion
     pairs = [[2,surface] for surface in surfaces[0:5]]
     # Extrude this mesh in the z direction to get the duct
     gmsh.model.geo.extrude(pairs, 0, 0, InputData.zSide, numElements=[InputData.zNumCells], recombine=True)
