@@ -122,12 +122,12 @@ def simpleCylinder(InputData: sg.Input, meshfilename, showmesh=False):
 
     # For convenience (used to place the corner points to anchor the circle)
     cos = 0.70710678118            # cos45
-    d = InputData.radius*2         # duct diameter
+    r = InputData.radius
 
     # Points for creating the circular face
     pts = [[0,0],                                                                                       # Mid point for creating the circular arcs
-            [d/2*cos, d/2*cos], [d/2*cos, -d/2*cos], [-d/2*cos, -d/2*cos], [-d/2*cos, d/2*cos],         # Corners of inner square region
-            [d*cos, d*cos], [d*cos, -d*cos], [-d*cos, -d*cos], [-d*cos, d*cos]]                         # Points on the circle in line with inner square corners
+            [r/2*cos, r/2*cos], [r/2*cos, -r/2*cos], [-r/2*cos, -r/2*cos], [-r/2*cos, r/2*cos],         # Corners of inner square region
+            [r*cos, r*cos], [r*cos, -r*cos], [-r*cos, -r*cos], [-r*cos, r*cos]]                         # Points on the circle in line with inner square corners
 
     # Add a new geometry model
     gmsh.model.add("cylinder")
