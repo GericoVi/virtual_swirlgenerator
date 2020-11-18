@@ -9,8 +9,9 @@
 
 import gmsh
 import core as sg
+import pre
 
-def testDomain(InputData: sg.Input, meshfilename, showmesh=False):
+def testDomain(InputData: pre.Input, meshfilename, showmesh=False):
     '''
     Wrapper function which calls the correct function depending on the inlet shape specified
     - InputData - Input object from core.py, containing geometry and mesh properties
@@ -26,7 +27,7 @@ def testDomain(InputData: sg.Input, meshfilename, showmesh=False):
     func(InputData, meshfilename, showmesh)
 
 
-def simpleBox(InputData: sg.Input, meshfilename, showmesh=False):
+def simpleBox(InputData: pre.Input, meshfilename, showmesh=False):
     '''
     Generates a simple 3D rectangular geometry and mesh
     - InputData - Input object from core.py, containing geometry and mesh properties
@@ -107,7 +108,7 @@ def simpleBox(InputData: sg.Input, meshfilename, showmesh=False):
     gmsh.finalize()
 
 
-def simpleCylinder(InputData: sg.Input, meshfilename, showmesh=False):
+def simpleCylinder(InputData: pre.Input, meshfilename, showmesh=False):
     '''
     Generates a simple 3D cylindrical duct geometry and mesh
     - InputData - Input object from core.py, containing geometry and mesh properties

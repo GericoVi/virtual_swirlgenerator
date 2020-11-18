@@ -2,6 +2,7 @@ import core as sg
 import writeBC as bc
 import maketestdomain as domain
 import post
+import pre
 import sys
 
 
@@ -16,7 +17,7 @@ def main():
     # Only try to generate boundary condition if the config file has been specified
     if options.configfile is not None:
         # Initialise Input object and read config file
-        inputData = sg.Input(options.configfile)
+        inputData = pre.Input(options.configfile)
 
         # Intialise flow field object with coordinate system
         flowField = sg.FlowField(inputData)
@@ -120,7 +121,7 @@ class Options:
                 raise RuntimeError("-saveplots arguement defined but no pdf filename given")
 
 
-def __extra_functions(options: Options, flowfield: sg.FlowField, config: sg.Input):
+def __extra_functions(options: Options, flowfield: sg.FlowField, config: pre.Input):
     '''
     Optional functionalities
     - Internal function, should not be called outside Main.py

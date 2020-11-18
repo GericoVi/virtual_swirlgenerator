@@ -10,6 +10,7 @@
 # -------------------------------------------------------------------------------------------------------------------
 
 import core as sg
+import pre
 import numpy as np
 
 
@@ -57,7 +58,7 @@ def writeSU2(flowField: sg.FlowField, filename):
         np.savetxt(f, boundaryConditions, fmt='%.6f')
 
 
-def writeInlet(InputObject: sg.Input, flowField: sg.FlowField):
+def writeInlet(InputObject: pre.Input, flowField: sg.FlowField):
     '''
     Wrapper function for calling the correct function to write the boundary condition in the requested format
     - InputObject - Input object which would contain the format to write the boundary condition in
