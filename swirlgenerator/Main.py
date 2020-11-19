@@ -136,7 +136,7 @@ def __extra_functions(options: Options, flowfield: sg.FlowField, config: pre.Inp
 
     # Create a test mesh compatible with the boundary condition that's been generated
     if options.makemesh:
-        domain.simpleBox(config, options.meshfile, options.showmesh)
+        domain.testDomain(config, options.meshfile, options.showmesh)
 
     # Save flow fields in pdf if requested
     if options.saveplots:
