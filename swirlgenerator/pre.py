@@ -34,14 +34,9 @@ class Input:
         self.vortRadius = []
         self.axialVel = None
         self.meshfilename = None
-        self.coords = None
 
         # Read in the config file on initialisation of the object since it has no other functionality anyway
         self.read(configfile)
-
-        # If defined, read the mesh file and process into useable coordinates for the inlet nodes
-        if self.meshfilename is not None:
-            self.coords = self.getNodes()
 
 
     def read(self, configFile):

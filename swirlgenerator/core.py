@@ -99,9 +99,9 @@ class FlowField:
         else:
             raise NotImplementedError('Invalid domain shape \'{self.shape}\'')
 
-        # If nodes taken from mesh file, use these. If not, generate some based on user input
-        if InputData.coords is not None:
-            self.coords = InputData.coords
+        # If a mesh file was specified, get the nodes from this. If not, generate some based on user input
+        if InputData.meshfilename is not None:
+            self.coords = InputData.getNodes()
         else:
             # Set coords and axis attributes
             self.makeGrid()
@@ -111,6 +111,11 @@ class FlowField:
 
             # Set cells outside domain to nan so that the flow field there is not unnecessarily calculated
             self.coords[np.invert(self.domainMask)] = np.nan
+
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.plot(self.coords.real, self.coords.imag, 'k.')
+        # plt.show()
 
     
     def makeGrid(self):

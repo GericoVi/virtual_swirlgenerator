@@ -19,20 +19,39 @@ def main():
         # Initialise Input object and read config file
         inputData = pre.Input(options.configfile)
 
+        # Create a test meshed geometry based on user inputs if requested - node coordinates of flowfield object taken from the inlet of this mesh
+        if options.makemesh:
+            # Throw error if mesh generation requested but no filename specified
+            if inputData.meshfilename is None:
+                raise RuntimeError("Mesh generation requested but no filename specified in config")
+            else:
+                domain.testDomain(inputData, inputData.meshfilename, options.showmesh)
+
         # Intialise flow field object with coordinate system
-        flowField = sg.FlowField(inputData)
+        flowfield = sg.FlowField(inputData)
 
         # Initialise domain configuration object with vortex definitions
         vortexDefs = sg.Vortices(inputData.vortModel, inputData.vortCoords, inputData.vortStrengths, inputData.vortRadius, inputData.axialVel)
 
         # Calculate velocity field
-        flowField.computeDomain(vortexDefs, axialVel=inputData.axialVel)
+        flowfield.computeDomain(vortexDefs, axialVel=inputData.axialVel)
+
+        # Verify boundary conditions if requested
+        if options.checkboundaries:
+            flowfield.checkBoundaries()
 
         # Write inlet boundary condition file
-        bc.writeInlet(InputObject=inputData, flowField=flowField)
+        bc.writeInlet(InputObject=inputData, flowField=flowfield)
 
-        # Optional functionality
-        __extra_functions(options, flowField, inputData)
+        # Save flow fields in pdf if requested - name the pdf the same as the boundary condition .dat file
+        if options.saveplots:
+            pdfname = options.configfile.split()[0]
+
+            post.plotAll(flowfield, pdfname)
+
+        # Show flow fields if requested
+        if options.showFields:
+            post.plotAll(flowfield)
 
 
 
@@ -48,9 +67,7 @@ class Options:
         self.checkboundaries    = False
         self.showplots          = False
         self.saveplots          = False
-        self.plotsfile          = None
         self.makemesh           = False
-        self.meshfile           = None
         self.showmesh           = False
 
         # For getting help with the command line arguements
@@ -64,9 +81,9 @@ class Options:
             print('-showmesh                Renders the mesh using GMSH GUI - beware this can be very slow with large meshes')
 
         else:
-            self.__checkoptions(arguments)
+            self.__checkoptions__(arguments)
 
-    def __checkoptions(self, arguments):
+    def __checkoptions__(self, arguments):
         '''
         Checks command line arguments and sets flags appropriately
         - Internal function, should not be used outside Main.py
@@ -82,21 +99,8 @@ class Options:
         # Check validity of boundary conditions
         self.checkboundaries = (True if '-checkboundaries' in arguments else False)
 
-        # Make meshed test domain
-        if '-makemesh' in arguments:
-            # Get index of this command line arguement
-            idx = arguments.index('-makemesh')
-
-            # Check if there is a pair
-            try:
-                if (arguments[idx+1].find('-') == 0):
-                    raise RuntimeError
-                else:
-                    # Use as filename
-                    self.meshfile = arguments[idx+1]
-                    self.makemesh = True
-            except:
-                raise RuntimeError("-makemesh arguement defined but no mesh filename given")
+        # Make a simple meshed geometry to test the boundary condition
+        self.makemesh = (True if '-makemesh' in arguments else False)
 
         # Show created test mesh
         self.showmesh = (True if '-showmesh' in arguments else False)
@@ -105,46 +109,7 @@ class Options:
         self.showFields = (True if '-show' in arguments else False)
 
         # Save plots
-        if '-saveplots' in arguments:
-            # Get index of this command line arguement
-            idx = arguments.index('-saveplots')
-
-            # Check if there is a pair
-            try:
-                if (arguments[idx+1].find('-') == 0):
-                    raise RuntimeError
-                else:
-                    # Use as filename
-                    self.plotsfile = arguments[idx+1]
-                    self.saveplots = True
-            except:
-                raise RuntimeError("-saveplots arguement defined but no pdf filename given")
-
-
-def __extra_functions(options: Options, flowfield: sg.FlowField, config: pre.Input):
-    '''
-    Optional functionalities
-    - Internal function, should not be called outside Main.py
-    - options - Options object to control which functions are called
-    - flowfield - FlowField object containing the flow field data
-    - config - Input object with the configuration data
-    '''
-
-    # Verify boundary conditions if requested
-    if options.checkboundaries:
-        flowfield.checkBoundaries()
-
-    # Create a test mesh compatible with the boundary condition that's been generated
-    if options.makemesh:
-        domain.testDomain(config, options.meshfile, options.showmesh)
-
-    # Save flow fields in pdf if requested
-    if options.saveplots:
-        post.plotAll(flowfield, options.plotsfile)
-
-    # Show flow fields if requested
-    if options.showFields:
-        post.plotAll(flowfield)
+        self.saveplots = (True if '-saveplots' in arguments else False)
 
 
 if __name__ == '__main__':
