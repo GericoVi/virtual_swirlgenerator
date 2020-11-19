@@ -26,10 +26,6 @@ def writeSU2(flowField: sg.FlowField, filename):
     # Extract x and y coordinates from list of complex coordinates
     x = flowField.coords.real
     y = flowField.coords.imag
-
-    # Transform domain coordinates from 0,0 centered to match mesh
-    x = x + flowField.sideLengths[0]/2
-    y = y + flowField.sideLengths[1]/2
     
     # Z coords at end of mesh
     z = np.zeros(np.shape(x))
