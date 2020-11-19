@@ -4,6 +4,7 @@
 #
 # -------------------------------------------------------------------------------------------------------------------
 
+import numpy as np
 from configparser import ConfigParser
 
 class Input:
@@ -32,9 +33,16 @@ class Input:
         self.vortStrengths = []
         self.vortRadius = []
         self.axialVel = None
+        self.meshfilename = None
+        self.coords = None
 
         # Read in the config file on initialisation of the object since it has no other functionality anyway
         self.read(configfile)
+
+        # If defined, read the mesh file and process into useable coordinates for the inlet nodes
+        if self.meshfilename is not None:
+            self.coords = self.getNodes()
+
 
     def read(self, configFile):
         # Initialise config parser and read config file
@@ -51,15 +59,26 @@ class Input:
             formats = ['su2']
 
             try:
+                # Get name for output boundary condition file
                 self.filename = metadata.get('filename')
                 
+                # Get format to write the boundary condition in
                 format = metadata.get('format')
+                # Check if supported format
                 if (format in formats):
                     self.format = format
                 else:
                     raise NotImplementedError(f"{format} not supported")
             except KeyError:
                 raise KeyError(f"Non-optional matadata missing in file {configFile}")
+
+            # If defined, get the mesh filename to read the inlet node coordinates from
+            try:
+                self.meshfilename = metadata.get('mesh')
+            except:
+                pass
+
+
 
         if ('MESH DEFINITION' in config):
             # Get section
@@ -153,3 +172,50 @@ class Input:
 
         # Set defaults if values weren't set
         self.axialVel   = (1.0 if self.axialVel is None else self.axialVel)
+
+
+    def getNodes(self):
+        '''
+        Extracts the coordinates of the nodes which make up the inlet from an input mesh file
+        '''
+
+        # Read in all lines from the file so we can index them in any order
+        with open(self.meshfilename, 'r') as f:
+            lines = f.readlines()
+
+        # Get index of where the inlet boundary definition starts
+        inletIdx = [i for [i,line] in enumerate(lines) if 'inlet' in line.lower()]
+
+        # Get index of where the point definitions start
+        pointIdx = [i for [i,line] in enumerate(lines) if 'NPOIN' in line]
+
+        # Check validity of mesh file by seeing if the above lines were found
+        if not inletIdx or not pointIdx:
+            raise RuntimeError('Invalid mesh file')
+        # Then we can extract the integers from the arrays
+        inletIdx = inletIdx[0]
+        pointIdx = pointIdx[0]
+
+        # Get number of elements/lines to read in next line
+        numElem = int(lines[inletIdx+1].split()[1])
+
+        # Get all elements listed within the inlet tag and store as a numpy array so we can do vectorised operations
+        inletElements = np.array(lines[inletIdx+2:inletIdx+2+numElem])
+
+        # Split each string to isolate the numbers, store this list of digit strings as a numpy array and convert to integers at the same time
+        nodeIdxs = [np.array(line).astype(int) for line in np.char.split(inletElements)]    # This is an list of numpy arrays
+        # Stack the numpy arrays into one big array and cut off the first elements (since this is the id of the element type which we don't need)
+        nodeIdxs = np.vstack(nodeIdxs)[:,1:]
+        # Now we flatten this array and remove the duplicate values (each node will show up between 2 to 4 times since they are vertices of quadrilaterals)
+        nodeIdxs = np.unique(nodeIdxs.flatten())
+
+        # Get all lines corresponding to the nodes in the inlet
+        nodes = np.array([lines[pointIdx + i+1] for i in nodeIdxs])
+
+        # Split each string to isolate the numbers, and convert to floats
+        nodes = [np.array(line).astype(float) for line in np.char.split(nodes)]             # Returns list of numpy arrays
+        # Stack into a single array and extract only first two coords - assume that this is x,y and that z is 0
+        nodes = np.vstack(nodes)[:,0:2]
+
+        # Return as an array of complex numbers
+        return nodes[:,0] + 1j * nodes[:,1]
