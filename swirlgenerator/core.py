@@ -78,11 +78,7 @@ class FlowField:
         self.rho        = None
         self.pressure   = None
 
-        # Initialise grid and domain variables
-        self.coords = None
-        self.axis = None
-        self.domainMask = None
-        self.boundaryMask = None
+        # Initialise domain variables
         self.boundaryCurve = None
         self._sortIdx_ = None
 
@@ -98,95 +94,40 @@ class FlowField:
             self.cellSides = np.divide(self.radius*2,self.numCells)
         else:
             raise NotImplementedError('Invalid domain shape \'{self.shape}\'')
+        # Extract node coordinates from the inlet of the mesh file
+        self.coords = InputData.getNodes()
 
-        # If a mesh file was specified, get the nodes from this. If not, generate some based on user input
-        if InputData.meshfilename is not None:
-            self.coords = InputData.getNodes()
-        else:
-            # Set coords and axis attributes
-            self.makeGrid()
-
-            # Set domainMask and boundaryMask attributes
-            self.setDomain()
-
-            # Set cells outside domain to nan so that the flow field there is not unnecessarily calculated
-            self.coords[np.invert(self.domainMask)] = np.nan
-
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # plt.plot(self.coords.real, self.coords.imag, 'k.')
-        # plt.show()
-
-    
-    def makeGrid(self):
-        '''
-        Make meshgrids to store coordinate system
-        - As a result, all variable fields will be meshgrids also, good performance since using numpy matrix operations
-        - Also stores x and y axis ticks
-        - Stores coords of mesh nodes rather than cell centres
-        '''
-
-        # Create coordinate system from mesh info - domain is centered at 0, I think makes for more intuitive definition of vortex positions
-        x = np.linspace(-self.sideLengths[0]/2, self.sideLengths[0]/2, self.numCells[0]+1)
-        y = np.linspace(-self.sideLengths[1]/2, self.sideLengths[1]/2, self.numCells[1]+1)     
-
-        # Protection for division by zero later - better solution than this?
-        x[x == 0] = 1e-32
-        y[y == 0] = 1e-32
-
-        # Use meshgrid function to get the coordinates of all points
-        X, Y = np.meshgrid(x,y)
-
-        # Then flatten and store as a list of complex numbers
-        self.coords = X.flatten() + 1j * Y.flatten()
-
-        # Stack axis ticks
-        self.axis = np.vstack([x,y])
+        # Set boundaryCurve attribute - ie the nodes which make up the domain boundary
+        self.__getBoundary__()
 
 
-    def setDomain(self):
+    def __getBoundary__(self):
         ''' 
-        Create a mask to specify the domain shape and borders within the meshgrid.
-        Sets object attributes: domainMask, boundaryMask, boundaryCurve, _sortIdx_
-        - domainMask is true when cell is within the boundary
-        - boundaryMask is true when cell is at the boundary
+        Sets object attributes: boundaryCurve, _sortIdx_
+        - Internal function, should not be used in isolation outside core.py
         - boundaryCurve stores the points (in order) which make up the boundary, as complex numbers
-        - _sortIdx_ is an internal attribute, index order to sort boundary cells
+        - _sortIdx_ is an internal attribute, index order to sort boundary cells, for connecting them correctly
         '''
 
         if self.shape == 'circle':
             # Radius of each cell from origin
             radius = np.abs(self.coords)
 
-            # Get domainMask using inequality - add buffer so that circular domain edges touch grid edges, since working with nodes rather than cell centres
-            self.domainMask = radius < self.radius + self.cellSides[0]/2
-
             # Get boundary using equality with a tolerance since discrete space
-            self.boundaryMask = abs(radius - self.radius) < self.cellSides[0]/2
+            boundaryMask = abs(radius - self.radius) < self.cellSides[0]/2
 
         elif self.shape == 'rect':
-            # All cells are within boundary when rectangular domain shape
-            self.domainMask = np.ones(self.coords.shape, dtype=bool)
-
             # Boundary cells are simply those at the edges
-            self.boundaryMask = np.zeros(self.domainMask.shape, dtype=bool)
-            self.boundaryMask[abs(self.coords.real) == self.sideLengths[0]/2] = True    # Right and left wall
-            self.boundaryMask[abs(self.coords.imag) == self.sideLengths[1]/2] = True    # Top and bottom wall
+            boundaryMask = np.zeros(self.coords.shape, dtype=bool)
+            boundaryMask[abs(self.coords.real) == self.sideLengths[0]/2] = True    # Right and left wall
+            boundaryMask[abs(self.coords.imag) == self.sideLengths[1]/2] = True    # Top and bottom wall
 
         else:
             raise NotImplementedError(f'Domain shape \'{self.shape}\' not valid')
 
-        boundaryPoints = self.coords[self.boundaryMask]
+        boundaryPoints = self.coords[boundaryMask]
         self._sortIdx_ = np.argsort(np.angle(boundaryPoints))
         self.boundaryCurve = boundaryPoints[self._sortIdx_]
-
-        # Show boundary for debugging
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # plt.imshow(self.domainMask.reshape(self.numCells+1))
-        # plt.figure()
-        # plt.imshow(self.boundaryMask.reshape(self.numCells+1))
-        # plt.show()
 
 
     def computeDomain(self, vortDefs: Vortices, axialVel, density = None):
