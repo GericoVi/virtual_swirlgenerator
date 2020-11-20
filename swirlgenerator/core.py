@@ -60,14 +60,6 @@ class FlowField:
     def __init__(self, InputData: pre.Input):
         # Get flow field descretisation descriptions from input object
         self.shape = InputData.shape
-        self.radius = InputData.radius
-
-        if InputData.xSide is not None:
-            self.sideLengths = np.array([InputData.xSide, InputData.ySide])
-        else:
-            # If circular domain, still need side lengths for defining the grid
-            self.sideLengths = np.array([InputData.radius*2, InputData.radius*2])
-        
 
         # Initialise the actual flow field variables
         self.velocity   = None
@@ -164,51 +156,23 @@ class FlowField:
         Models the effect of a solid wall on a vortex using the Method of Images.
         Effect of these image vortices are superimposed onto the input arrays.
         - Internal function, should not be used outside core.py
-        - WIP ---- RECTANGULAR BOUNDARY DOES NOT CURRENTLY WORK CORRECTLY
+        - WIP ---- Only implemented for circular inlets
         - vortData - tuple produced by getVortex() function of Vortices class
         - velComp - velocity field outputted by a vortex function
         - vortexFunc - pointer to the correct vortex function depending on chosen model
         '''
 
-        if self.shape == 'rect':
-            # Get distance of vortex from walls - defined starting with bottom wall, going clockwise
-            vortXc, vortYc = vortData[0]
-            boundaryDist = [-self.sideLengths[1]/2-vortYc, -self.sideLengths[0]/2-vortXc, self.sideLengths[1]/2-vortYc, self.sideLengths[0]/2-vortXc]
-            boundaryDist = list(map(abs,boundaryDist))  # Magnitudes
-       
-            # Place image vortices outside the domain - such that the bounday conditions are met while keeping the total circulation of the unbounded domain equalt to 0
-            imageVortO = [[vortXc, vortYc-(2*boundaryDist[0])], 
-                          [vortXc-(2*boundaryDist[1]), vortYc], 
-                          [vortXc-(2*boundaryDist[1]), vortYc-(2*boundaryDist[0])],
-                          [vortXc, vortYc+(2*boundaryDist[1])],
-                          [vortXc, vortYc+(3*boundaryDist[1])],
-                          [vortXc+(2*boundaryDist[3]), vortYc],
-                          [vortXc+(3*boundaryDist[3]), vortYc]]
-            imageVortS = [-vortData[1],-vortData[1],vortData[1],-vortData[1],vortData[1],-vortData[1],vortData[1]]
-
-            for i in range(len(imageVortS)):
-                # Create new array for this image vortex to be passed on to the appropriate vortex model function
-                imageVortData = list(vortData)
-                imageVortData[0] = imageVortO[i]
-                imageVortData[1] = imageVortS[i]
-
-                #print(f'image vortex @ {imageVortData[0]}, with strength {imageVortData[1]}')
-
-                # Get effect of image vortex on velocity field
-                velBoundary = vortexFunc(tuple(imageVortData))
-
-                # Superimpose effect
-                velComp += velBoundary
-
-
-        elif self.shape == 'circle':
+        if self.shape == 'circle':
             # Protection for division by zero
             vortData[0][vortData[0] == 0] = 1e-32   
+
+            # Get the radius of the inlet - maximum radius of nodes at boundary (should all be equal but just in case)
+            radius = np.amax(np.abs(self.boundaryCurve))
 
             # Vortex of opposite strength
             imageVortS = -vortData[1]
             # At the inverse point - according to circle theorem
-            imageVortO = (self.radius**2/(np.linalg.norm(vortData[0]))**2)*vortData[0]
+            imageVortO = (radius**2/(np.abs(vortData[0]))**2)*vortData[0]
 
             # Creating new vortex data list
             imageVortData = list(vortData)
@@ -224,8 +188,11 @@ class FlowField:
             velComp += velBoundary
             
         else:
-            raise NotImplementedError('Inlet shape not valid')
+            # Warn that vortices in non-circular inlets will not interact with the boundary
+            import warnings
 
+            warnings.warn("Effect of solid boundaries for non-circular inlets have not been implemented")
+            
         return velComp
 
     
