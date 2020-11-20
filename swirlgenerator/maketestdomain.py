@@ -11,7 +11,7 @@ import gmsh
 import core as sg
 import pre
 
-def testDomain(InputData: pre.Input, meshfilename, showmesh=False):
+def testDomain(InputData: pre.Input, meshfilename, showmesh=False, verbose=False):
     '''
     Wrapper function which calls the correct function depending on the inlet shape specified
     - InputData - Input object from core.py, containing geometry and mesh properties
@@ -22,23 +22,46 @@ def testDomain(InputData: pre.Input, meshfilename, showmesh=False):
     # Dictionary to map inlet shape to correct function
     domains = {'circle': simpleCylinder, 'rect': simpleBox}
 
-    # Call appropriate function using handle
+    # Initialise gmsh api
+    gmsh.initialize()
+
+    # Set verbosity level
+    if verbose:
+        verbosity = 5
+    else:
+        verbosity = 0
+
+    gmsh.option.setNumber("General.Verbosity", verbosity)
+
+    # Call appropriate function using handle to create the geometry and mesh settings
+    print('Creating geometry...')
     func = domains.get(InputData.shape)
-    func(InputData, meshfilename, showmesh)
+    func(InputData)
+
+    # Before meshing, the CAD entities created need to be synchronised with the GMsh model
+    gmsh.model.geo.synchronize()
+
+    # Generate 3D mesh
+    print('Generating mesh...')
+    gmsh.model.mesh.generate(3)
+
+    # Write mesh to file
+    gmsh.write(meshfilename)
+    print(f"Mesh file written to {meshfilename}")
+
+    # Visualise model in gui
+    if showmesh:
+        gmsh.fltk.run()
+
+    gmsh.finalize()
 
 
-def simpleBox(InputData: pre.Input, meshfilename, showmesh=False):
+def simpleBox(InputData: pre.Input):
     '''
-    Generates a simple 3D rectangular geometry and mesh
+    Writes a simple 3D rectangular geometry and mesh settings into the gmsh instance
     - InputData - Input object from core.py, containing geometry and mesh properties
-    - meshfilename - the filename's extension will determine what format to write the mesh
-    - showmesh - flag for showing the mesh using the gmsh gui, not recommended for large meshes
     - Uses gmsh python api
     '''
-
-    print('Creating geometry...')
-
-    gmsh.initialize()
 
     # Get vertices of face
     vertices = [[InputData.xSide/2, InputData.ySide/2], [InputData.xSide/2, -InputData.ySide/2], [-InputData.xSide/2, -InputData.ySide/2], [-InputData.xSide/2, InputData.ySide/2]] 
@@ -90,36 +113,13 @@ def simpleBox(InputData: pre.Input, meshfilename, showmesh=False):
     pVol = gmsh.model.addPhysicalGroup(3, [1])
     gmsh.model.setPhysicalName(3, pVol, "domain")
 
-    # Before meshing, the CAD entities created needs to e synchronised with the GMsh model
-    gmsh.model.geo.synchronize()
 
-    # Generate 3D mesh
-    print('Generating mesh...')
-    gmsh.model.mesh.generate(3)
-
-    # Write mesh to file
-    gmsh.write(meshfilename)
-    print(f"Mesh file written to {meshfilename}")
-
-    # Visualise model in gui
-    if showmesh:
-        gmsh.fltk.run()
-
-    gmsh.finalize()
-
-
-def simpleCylinder(InputData: pre.Input, meshfilename, showmesh=False):
+def simpleCylinder(InputData: pre.Input):
     '''
-    Generates a simple 3D cylindrical duct geometry and mesh
+    Writes a simple 3D cylindrical duct geometry and mesh settings into the gmsh instance
     - InputData - Input object from core.py, containing geometry and mesh properties
-    - meshfilename - the filename's extension will determine what format to write the mesh
-    - showmesh - flag for showing the mesh using the gmsh gui, not recommended for large meshes
     - Uses gmsh python api
     '''
-
-    print('Creating geometry...')
-
-    gmsh.initialize()
 
     # For convenience (used to place the corner points to anchor the circle)
     cos = 0.70710678118            # cos45
@@ -196,23 +196,4 @@ def simpleCylinder(InputData: pre.Input, meshfilename, showmesh=False):
     # Do the same for the volume
     pVol = gmsh.model.addPhysicalGroup(3, [1,2,3,4,5])
     gmsh.model.setPhysicalName(3, pVol, 'domain')
-
-    # Before meshing, the CAD entities created needs to be synchronised with the gmsh model
-    gmsh.model.geo.synchronize()
-
-    # Generate 3D mesh
-    print('Generating mesh...')
-    gmsh.model.mesh.generate(3)
-
-    # Write mesh to file
-    gmsh.write(meshfilename)
-    print(f"Mesh file written to {meshfilename}")
-
-    # Visualise model in gui
-    if showmesh:
-        gmsh.fltk.run()
-
-    gmsh.finalize()
-
-
 
