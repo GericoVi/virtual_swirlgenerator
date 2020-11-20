@@ -431,19 +431,3 @@ class FlowField:
         else:
             raise RuntimeError('File format/contents invalid - make sure this file was created by swirlGenerator.saveFigsToPdf')
 
-    
-    def copy(self):
-        '''
-        Utility function for copying this flow field into another separate object
-        '''
-
-        # Create new object
-        newField = FlowField(self.sideLengths,self.numCells)
-
-        # Copy all data so far
-        newField.velocity   = self.velocity
-        newField.rho        = self.rho
-        newField.pressure   = self.pressure
-        newField.swirlAngle = self.swirlAngle
-
-        return newField
