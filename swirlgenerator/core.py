@@ -58,9 +58,6 @@ class FlowField:
     '''
 
     def __init__(self, InputData: pre.Input):
-        # Get flow field descretisation descriptions from input object
-        self.shape = InputData.shape
-
         # Initialise the actual flow field variables
         self.velocity   = None
         self.rho        = None
@@ -69,6 +66,7 @@ class FlowField:
         # Initialise domain variables
         self.boundaryCurve = None
         self._sortIdx_ = None
+        self.isCircle = False
 
         # Some comparison and metrics
         self.swirlAngle = None
@@ -78,6 +76,8 @@ class FlowField:
 
         # Set boundaryCurve attribute - ie the nodes which make up the domain boundary
         self.__getBoundary__()
+
+        self.__checkIfCircle__()
 
 
     def __getBoundary__(self):
@@ -109,6 +109,20 @@ class FlowField:
 
         # Get indices of these points within the full coords array
         self._sortIdx_ = [np.where(self.coords == point)[0][0] for point in self.boundaryCurve]
+
+
+    def __checkIfCircle__(self):
+        '''
+        Method to check if the inlet face extracted from the mesh is circular
+        - Sets attribute isCircle
+        - Needed since solid boundary effect is only available for circular inlets using the method of images & circle theorem
+        '''
+
+        # Get radius of all points in the boundary curve
+        radius = np.abs(self.boundaryCurve)
+        
+        # Check if all points in the boundary are equally spaced from the centre - with a tolerance for numerical inaccuracy
+        self.isCircle = np.all(np.abs(radius - radius[0]) < 1e-15)
 
 
     def computeDomain(self, vortDefs: Vortices, axialVel, density = None):
@@ -162,7 +176,7 @@ class FlowField:
         - vortexFunc - pointer to the correct vortex function depending on chosen model
         '''
 
-        if self.shape == 'circle':
+        if self.isCircle:
             # Protection for division by zero
             vortData[0][vortData[0] == 0] = 1e-32   
 
