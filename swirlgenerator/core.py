@@ -68,10 +68,6 @@ class FlowField:
             # If circular domain, still need side lengths for defining the grid
             self.sideLengths = np.array([InputData.radius*2, InputData.radius*2])
         
-        if self.shape == 'rect':
-            self.numCells = np.array([InputData.xNumCells, InputData.yNumCells])
-        else:
-            self.numCells = np.array([InputData.radialNumCells, InputData.curveNumCells])
 
         # Initialise the actual flow field variables
         self.velocity   = None
@@ -85,15 +81,6 @@ class FlowField:
         # Some comparison and metrics
         self.swirlAngle = None
 
-        # Side lengths of each cell - using np.divide here also serves to automatically convert python lists into numpy arrays
-        if self.shape == 'rect':
-            # For rectangular domain, simple calculation
-            self.cellSides = np.divide(self.sideLengths,self.numCells)
-        elif self.shape == 'circle':
-            # For circular domain, diameter (equal to grid side length) is used
-            self.cellSides = np.divide(self.radius*2,self.numCells)
-        else:
-            raise NotImplementedError('Invalid domain shape \'{self.shape}\'')
         # Extract node coordinates from the inlet of the mesh file
         self.coords = InputData.getNodes()
 
@@ -105,29 +92,31 @@ class FlowField:
         ''' 
         Sets object attributes: boundaryCurve, _sortIdx_
         - Internal function, should not be used in isolation outside core.py
+        - Uses the alpha shape algorithm to get the boundary nodes - from alphashape library
         - boundaryCurve stores the points (in order) which make up the boundary, as complex numbers
         - _sortIdx_ is an internal attribute, index order to sort boundary cells, for connecting them correctly
         '''
 
-        if self.shape == 'circle':
-            # Radius of each cell from origin
-            radius = np.abs(self.coords)
+        # Do alphashape import here, not needed anywhere else
+        import alphashape
 
-            # Get boundary using equality with a tolerance since discrete space
-            boundaryMask = abs(radius - self.radius) < self.cellSides[0]/2
+        # Get points into array format
+        points = np.column_stack([self.coords.real, self.coords.imag])
 
-        elif self.shape == 'rect':
-            # Boundary cells are simply those at the edges
-            boundaryMask = np.zeros(self.coords.shape, dtype=bool)
-            boundaryMask[abs(self.coords.real) == self.sideLengths[0]/2] = True    # Right and left wall
-            boundaryMask[abs(self.coords.imag) == self.sideLengths[1]/2] = True    # Top and bottom wall
+        # Use alpha shape to get the bounding curve 
+        # an alpha value of 0.1 performs well with nodes arranged in a circle or rectangle
+        # Basically just a small value over 0 seems to generalise well to simple shapes without ignoring the points on the sides of rectangle - since alpha=0 returns the convex hull
+        hull = alphashape.alphashape(points,alpha=0.1)
 
-        else:
-            raise NotImplementedError(f'Domain shape \'{self.shape}\' not valid')
+        # Extract the actual coordinates into a numpy array
+        hull_pts = hull.boundary.coords.xy
+        hull_pts = np.array([hull_pts[0],hull_pts[1]])
 
-        boundaryPoints = self.coords[boundaryMask]
-        self._sortIdx_ = np.argsort(np.angle(boundaryPoints))
-        self.boundaryCurve = boundaryPoints[self._sortIdx_]
+        # Put into complex format and assign into class attribute
+        self.boundaryCurve = hull_pts[0] + 1j * hull_pts[1]
+
+        # Get indices of these points within the full coords array
+        self._sortIdx_ = [np.where(self.coords == point)[0][0] for point in self.boundaryCurve]
 
 
     def computeDomain(self, vortDefs: Vortices, axialVel, density = None):
