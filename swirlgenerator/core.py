@@ -331,10 +331,7 @@ class FlowField:
 
         # Get planar velocity vectors as complex numbers
         vels   = self.velocity[:,0] + 1j * self.velocity[:,1]
-        # Get only the velocities of the nodes at the boundary
-        vels = vels[self.boundaryMask]
-
-        # Sort data based on increasing phi polar coordinate
+        # Get the velocities of the nodes at the boundary
         sortedVels = vels[self._sortIdx_]
 
         # Calculate vectors which are parallel to the boundary curve
