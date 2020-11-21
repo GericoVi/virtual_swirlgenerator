@@ -186,7 +186,7 @@ class FlowField:
             # Vortex of opposite strength
             imageVortS = -vortData[1]
             # At the inverse point - according to circle theorem
-            imageVortO = (radius**2/(np.abs(vortData[0]))**2)*vortData[0]
+            imageVortO = (radius**2/(np.linalg.norm(vortData[0]))**2)*vortData[0]
 
             # Creating new vortex data list
             imageVortData = list(vortData)
