@@ -350,7 +350,7 @@ class FlowField:
             perpendicularVect[i] = vect.imag - 1j*vect.real
 
         # Now calculate the component of the velocity at each point, perpendicular to the boundary curve
-        velOut = np.abs(sortedVels)*np.dot(sortedVels,perpendicularVect)
+        velOut = np.array([vel*np.vdot(vel,perp) for vel,perp in zip(sortedVels,perpendicularVect)])
 
         # Integrate to get total flux through boundary
         fluxOut = np.sum(np.abs(velOut)*np.abs(parallelVect)/2)
@@ -360,12 +360,12 @@ class FlowField:
             boundary_ok = False
             print(f'Flux out of boundary: {fluxOut} units/sec')
 
+
         # import matplotlib.pyplot as plt
         # plt.figure()
         # plt.gca().set_aspect('equal', adjustable='box')
-        # plt.quiver(self.boundaryCurve.real, self.boundaryCurve.imag, parallelVect.real, parallelVect.imag,units='dots', width=2,headwidth=5,headlength=5,headaxislength=2.5,color='blue')
-        # plt.quiver(self.boundaryCurve.real, self.boundaryCurve.imag, perpendicularVect.real, perpendicularVect.imag,units='dots', width=2,headwidth=5,headlength=5,headaxislength=2.5,color='red')
-        # plt.scatter(self.boundaryCurve.real, self.boundaryCurve.imag)
+        # plt.quiver(self.boundaryCurve.real, self.boundaryCurve.imag, velOut.real,velOut.imag,color='red')
+        # plt.quiver(self.boundaryCurve.real, self.boundaryCurve.imag, sortedVels.real,sortedVels.imag,color='blue')
         # plt.show()
             
         return boundary_ok
