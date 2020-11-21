@@ -64,14 +64,15 @@ class Input:
                     self.format = format
                 else:
                     raise NotImplementedError(f"{format} not supported")
-            except KeyError:
-                raise KeyError(f"Non-optional matadata missing in file {configFile}")
-
-            # If defined, get the mesh filename to read the inlet node coordinates from
-            try:
+                
+                # Get the mesh filename to read the inlet node coordinates from (also the filename to write a generated mesh to)
                 self.meshfilename = metadata.get('mesh')
-            except:
-                pass
+
+            except KeyError:
+                raise KeyError(f"Non-optional metadata missing in file {configFile}")
+
+        else:
+            raise RuntimeError(f"Metadata section missing in file {configFile}")
 
 
 
@@ -86,6 +87,10 @@ class Input:
                 raise KeyError("Shape of inlet face must be specified")
 
             try:
+                # Get mesh length parameters
+                self.zSide = float(meshDefinitions.get('z_side'))
+                self.zNumCells = int(meshDefinitions.get('z_num_cells'))
+
                 # Get necessary inputs for inlet shape
                 if self.shape == 'circle':
                     # Get circle radius
@@ -107,19 +112,10 @@ class Input:
 
             # Catch errors and print appropriate helpful error messages
             except KeyError:
-                raise KeyError(f"Non-optional geometry/mesh parameters are missing in file {configFile}")
+                raise KeyError(f"Non-optional geometry/mesh parameters are missing in file {configFile} for {self.shape} inlet shape")
             except ValueError:
                 raise ValueError("Invalid values defined for mesh/geometry")
 
-            # Optional parameters
-            if ('z_side' in meshDefinitions):
-                self.zSide = float(meshDefinitions.get('z_side'))
-
-            if ('z_num_cells' in meshDefinitions):
-                self.zNumCells = int(meshDefinitions.get('z_num_cells'))
-
-        else:
-            raise ValueError(f"Non-optional mesh definitions section not present in file {configFile}")
 
         if ('VORTEX DEFINITIONS' in config):
             # Get section
@@ -175,8 +171,11 @@ class Input:
         '''
 
         # Read in all lines from the file so we can index them in any order
-        with open(self.meshfilename, 'r') as f:
-            lines = f.readlines()
+        try:
+            with open(self.meshfilename, 'r') as f:
+                lines = f.readlines()
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Specificed mesh file {self.meshfilename} was not found")
 
         # Get index of where the inlet boundary definition starts
         inletIdx = [i for [i,line] in enumerate(lines) if 'inlet' in line.lower()]
