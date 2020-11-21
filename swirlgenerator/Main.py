@@ -43,15 +43,17 @@ def main():
         # Write inlet boundary condition file
         bc.writeInlet(InputObject=inputData, flowField=flowfield)
 
+        # Initialise plotting object
+        plots = post.Plots(flowfield)
+
         # Save flow fields in pdf if requested - name the pdf the same as the boundary condition .dat file
         if options.saveplots:
             pdfname = options.configfile.split()[0]
-
-            post.plotAll(flowfield, pdfname)
+            plots.plotAll(pdfname)
 
         # Show flow fields if requested
         if options.showFields:
-            post.plotAll(flowfield)
+            plots.plotAll()
 
 
 
