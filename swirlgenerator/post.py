@@ -174,6 +174,19 @@ class Plots:
         plt.plot(self.boundary[0], self.boundary[1],'k-')
 
 
+    def showInletNodes(self):
+        '''
+        Utility function for showing the position of the nodes at the inlet mesh
+        '''
+
+        plt.figure()
+        plt.gca().set_aspect('equal', adjustable='box')
+        plt.title('Inlet mesh')
+        plt.plot(self.boundary[0], self.boundary[1],'k-')
+        plt.scatter(self.xy[0],self.xy[1],marker='.')
+        plt.show()
+
+
     def __saveFigsToPdf__(self, outputFile):
         '''
         Save all current figures into a multi-page pdf
