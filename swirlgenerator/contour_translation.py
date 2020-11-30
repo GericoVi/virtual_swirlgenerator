@@ -9,66 +9,46 @@ from matplotlib.pyplot import plot
 import numpy as np
 import cv2
 
-class Contours:
+class Contour:
     '''
     Class for processing images conatining the flow angles as contour plots
-    - imgFile1 - RGB image file containing the contour plot of the tangential flow angle field
-    - imgFile2 - RGB image file containing the contour plot of the radial flow angle field
-    - duct_radius - actual radius of the circular inlet
-    - ranges - set of [min, max] values which corresponds to the colorbar ranges of the two contour plots; size (2,2)
+    - imgFile1 - PNG image file containing the contour plot to translate
+    - range - [min, max] values which correspond to the colorbar range of the contour plot
     - nodes - complex coordinates of nodes on the inlet plane (extracted from mesh)
     '''
     
-    def __init__(self,imgFile1,imgFile2,duct_radius,ranges,nodes):
+    def __init__(self,imgFile,range,nodes):
         
         # Extract variables into object
-        self.imgArrays = (cv2.imread(imgFile1), cv2.imread(imgFile2))
-        self.ranges = ranges
-        self.duct_radius = duct_radius
+        self.imgArray = cv2.imread(imgFile)
+        self.range = range
         self.nodes = nodes
 
+        # Get the actual radius of the plot in terms of the inlet units - using the nodes, assuming that the boundary is made up of nodes
+        self.duct_radius = max(abs(self.nodes))
 
-    def getFlowField(self, axialVel):
+        # Get values of contour plot at nodes during initialisation and store into an attribute 
+        # - makes outside workflows more streamlined, while keeping flexibility for calling individual methods after
+        self.values = self.translateContour()
+
+
+    def translateContour(self):
         '''
-        Reconstructs the velocity field at the inlet using the tangential and radial flow angle contour plots
-        - axialVel - mean axial velocity of the bulk flow
+        Main function which will be called outside this module, contains the workflow for reading in the contour plot image and extracting the values used to plot
+        - Outputs a flat numpy array with the order of values corresponding to the input nodes
         '''
 
-        values = [None, None]
-        # Extract values from both contour plots
-        for i, imgArray in enumerate(self.imgArrays):
-            # Get the bounding circle/box of the contour plot and colour bar
-            boundaries = self.segmentImage(imgArray)
+        # Get the bounding circle/box of the contour plot and colour bar
+        boundaries = self.segmentImage(self.imgArray)
 
-            # Get the pixels within the plot and their coords in terms of the inlet dimensions
-            plotPixels = self.getPlotPixels(imgArray, boundaries[0])
+        # Get the pixels within the plot and their coords in terms of the inlet dimensions
+        plotPixels = self.getPlotPixels(self.imgArray, boundaries[0])
 
-            # Extract the colourmap associated to this plot from the image
-            cmap = self.__getCmap__(imgArray, boundaries[1])
+        # Extract the colourmap associated to this plot from the image
+        cmap = self.__getCmap__(self.imgArray, boundaries[1])
 
-            # Get actual values at nodes
-            values[i] = self.getValuesAtNodes(plotPixels, cmap, self.nodes, self.ranges[i])
-
-        # Extract from list
-        tangential_flow_angle = np.deg2rad(values[0])
-        radial_flow_angle = np.deg2rad(values[1])
-
-        # Get velocities in polar coordinate system
-        vel_theta = np.tan(tangential_flow_angle)*axialVel
-        r_dot = np.tan(radial_flow_angle)*axialVel
-
-        # Get polar coordinates of nodes
-        radius = np.abs(self.nodes)
-        theta = np.arctan2(self.nodes.imag,self.nodes.real)
-
-        # Get theta dot
-        theta_dot = vel_theta/radius
-
-        # Get cartesian velocities
-        u = r_dot*np.cos(theta) - radius*theta_dot*np.sin(theta)
-        v = r_dot*np.sin(theta) + radius*theta_dot*np.cos(theta)
-
-        return np.column_stack([u,v])
+        # Get actual values at nodes
+        return self.getValuesAtNodes(plotPixels, cmap, self.nodes, self.range)
 
 
     def segmentImage(self, imgArray, showresult=False):
@@ -267,6 +247,15 @@ class Contours:
         # Extract the arrays from the input tuple
         pixelCoords = plotPixels[0]
         pixelBGRs = plotPixels[1]
+
+        # RGB = np.squeeze(np.dstack([pixelBGRs[:,2],pixelBGRs[:,1],pixelBGRs[:,0]]))
+
+        # from matplotlib import pyplot as plt
+        # plt.figure()
+        # plt.gca().set_aspect('equal', adjustable='box')
+        # plt.title('Inlet mesh')
+        # plt.scatter(pixelCoords.real,pixelCoords.imag,marker='.',c=RGB)
+        # plt.show()
 
         # For storing the corresponding level of the pixels' colour at that node within the colourmap
         levels = np.array([None]*len(nodes))
