@@ -77,6 +77,10 @@ class Options:
         self.makemesh           = False
         self.showmesh           = False
 
+        # Options based on the inputs in config file
+        self.reconstruct = False            # Are we reconstructing the flow field from contour plots or creating from discrete vortices
+        self.validate = False               # Are we getting the error between the created flow field and a swirl angle contour plot
+
         # For getting help with the command line arguements
         if ('-help' in self.arguments[1]):
             print('Usage: swirlgenerator [config file] [options]')
@@ -151,6 +155,21 @@ class Options:
 
             if inputdata.numVortices < 1:
                 raise RuntimeError(f'\nAt least one vortex needs to be defined in {self.configfile}')
+
+        # Check if contour plots to be translated are given
+        if inputdata.contours_flag:
+            # Tangential flow angle plot always needed
+            if (inputdata.tanImg is None or inputdata.tanRng is None):
+                raise RuntimeError(f'\nCONTOUR TRANSLATION section present but required tangential flow angle plot information not provided in {self.configfile}')
+
+            # Creation of flow field by vortex method has priority
+            if inputdata.vortDefs_flag:
+                self.validate = True
+            # If actually reconstructing, we need an extra plot
+            else:
+                self.reconstruct = True
+                if (inputdata.radImg is None or inputdata.radRng is None):
+                    raise RuntimeError(f'\nRadial flow angle plot information missing in {self.configfile} for flow field reconstruction')
 
         # Check if mesh properties have been defined when needed
         if (self.makemesh and not inputdata.mesh_flag):

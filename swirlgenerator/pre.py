@@ -74,6 +74,7 @@ class Input:
         # Check which sections are present
         self.metadata_flag = 'METADATA' in config
         self.vortDefs_flag = 'VORTEX DEFINITIONS' in config
+        self.contours_flag = 'CONTOUR TRANSLATION' in config
         self.mesh_flag     = 'MESH DEFINITION' in config 
         self.extra_flag    = 'EXTRA' in config
 
@@ -130,6 +131,26 @@ class Input:
 
                 except ValueError:
                     raise ValueError(f"Invalid values defined for vortex parameters")
+
+
+        if self.contours_flag:
+            # Get section
+            contours = config['CONTOUR TRANSLATION']
+
+            # Get present inputs
+            try:
+                self.tanImg = contours.get('tan_img')
+                self.tanRng = contours.get('tan_range')
+            except:
+                pass
+            
+            # Get information on the radial flow plot image if they are there
+            try:
+                self.radImg = contours.get('rad_img')
+                self.radRng = contours.get('tan_range')
+            except:
+                pass
+
 
         # Optional section
         if self.extra_flag:
