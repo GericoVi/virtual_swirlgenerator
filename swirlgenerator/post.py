@@ -198,3 +198,5 @@ class Plots:
             # Go through all active figures and save to a separate pdf page
             for fig in range(1, plt.gcf().number+1):
                 pdf.savefig(fig)
+
+        plt.close('all')
