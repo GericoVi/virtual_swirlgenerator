@@ -126,23 +126,15 @@ class Plots:
         plt.colorbar()
 
 
-    def plotSwirl(self, axisRange=[None,None], numTicks = None, swirlAngle = None):
+    def plotSwirl(self, axisRange=[None,None], numTicks = None):
         '''
         Create contour plot for swirl angle
         - axisRange - specify the max and min values for the colormap
         - numTicks - specify the number of ticks to show on the colorbar
-        - swirlangle - optional argument, will override the swirl angle used to initialise the Plots instance,
-        so that this function can be used independently if needed
         '''
 
-        # Use overriding values for plotting if given
-        if swirlAngle is not None:
-            swirlAngle = swirlAngle
-        else:
-            swirlAngle = self.swirlAngle
-
         # Interpolate data to a regularly spaced grid
-        swirlAngle = griddata((self.xy[0],self.xy[1]), swirlAngle, (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='cubic')
+        swirlAngle = griddata((self.xy[0],self.xy[1]), self.swirlAngle, (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='cubic')
 
         # Make our own reasonable max and min range if not specified
         if None in axisRange:
