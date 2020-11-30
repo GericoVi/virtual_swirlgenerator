@@ -61,7 +61,7 @@ def main():
             if tangential is None:
                 tangential = ct.Contour(inputData.tanImg, inputData.tanRng, flowfield.coords)
 
-            print(f'RMSE compared to estimated plot values: {flowfield.getError(tangential)}')
+            print(f'RMSE compared to estimated plot values: {flowfield.getError(tangential.values)}')
 
         # Verify boundary conditions if requested
         if options.checkboundaries:
