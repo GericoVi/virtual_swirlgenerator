@@ -93,6 +93,11 @@ class FlowField:
         self.coords.real[self.coords.real == 0] = 1e-32
         self.coords.imag[self.coords.imag == 0] = 1e-32
 
+        # Also store coordinates in polar axis for convenience
+        radius = np.abs(self.coords)
+        theta = np.arctan2(self.coords.imag, self.coords.real)
+        self.coords_polar = radius + 1j * theta
+
         # Set boundaryCurve attribute - ie the nodes which make up the domain boundary
         self.__getBoundary__()
 
@@ -182,6 +187,38 @@ class FlowField:
 
         # Get swirl angle
         self.getSwirl()
+
+
+    def reconstructDomain(self, tangential_angles, radial_angles, axialVel, degrees=True):
+        '''
+        Reconstructs the velocity field at the inlet using the tangential and radial flow angles
+        - tangential_angles - tangential flow angle, atan(vel_theta/vel_z), flat array with order corresponding to the nodes list
+        - radial_angles - radial flow angle, atan(vel_r/vel_z), flat array with order corresponding to the nodes list
+        - axialVel - mean axial velocity of the bulk flow (streamwise velocity)
+        - degrees - flag to choose what angle units the inputs use, degrees by default
+        '''
+        
+        # Convert to radians if necessary
+        if degrees:
+            tangential_angles = np.deg2rad(tangential_angles)
+            radial_angles = np.deg2rad(radial_angles)
+
+        # Get velocities in polar coordinate system
+        vel_theta = np.tan(tangential_angles)*axialVel
+        r_dot = np.tan(radial_angles)*axialVel
+
+        # Get theta dot
+        theta_dot = vel_theta/self.coords_polar.real
+
+        # Get velocity field in Cartesian system
+        u = r_dot*np.cos(self.coords_polar.imag) - self.coords_polar.real*theta_dot*np.sin(self.coords_polar.imag)
+        v = r_dot*np.sin(self.coords_polar.imag) + self.coords_polar.real*theta_dot*np.cos(self.coords_polar.imag)
+
+        # Assume a uniform streamwise velocity
+        w = np.ones(u.shape[0])*axialVel
+
+        # Stack into the velocity attribute
+        self.velocity = np.column_stack([u,v,w])
 
     
     def __boundary__(self, vortData, velComp, vortexFunc):
