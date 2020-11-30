@@ -17,6 +17,9 @@ def main():
 
     # Only try to generate boundary condition if the config file has been specified
     if options.configfile is not None:
+        # Initialise some things for later
+        tangential = None
+
         # Initialise Input object and read config file
         inputData = pre.Input(options.configfile)
 
@@ -51,6 +54,14 @@ def main():
             # Calculate velocity field from flow angles
             flowfield.reconstructDomain(tangential.values, radial.values, inputData.axialVel)
 
+
+        # Get RMSE between calculated swirl angle field and that estimated from contour plot image if requested
+        if options.validate:
+            # Get the swirl angles from a contour plot if haven't already done so
+            if tangential is None:
+                tangential = ct.Contour(inputData.tanImg, inputData.tanRng, flowfield.coords)
+
+            print(f'RMSE compared to estimated plot values: {flowfield.getError(tangential)}')
 
         # Verify boundary conditions if requested
         if options.checkboundaries:
@@ -99,6 +110,7 @@ class Options:
             print('Usage: swirlgenerator [config file] [options]')
             print('Options:')
             print('-reconstruct             Reconstructs flow field from input contour plot images rather than vortex method - overrides priority')
+            print('-validate                Gets the RMSE between the calculated swirl angle and the estimated values from a contour plot image')
             print('-checkboundaries         Runs the function which checks if the boundary conditions have been satisfied')
             print('-show                    Shows the plots of the flow fields in separate windows')
             print('-saveplots               Saves the plots into a pdf file with the same name as the config file')
@@ -124,6 +136,9 @@ class Options:
 
         # Override priority and use reconstruction method even if domain vortices have been defined
         self.reconstruct = (True if '-reconstruct' in self.arguments else False)
+
+        # Override and validate the calculated swirl angle with the estimated values translated from a contour plot
+        self.validate = (True if '-validate' in self.arguments else False)
 
         # Check validity of boundary conditions
         self.checkboundaries = (True if '-checkboundaries' in self.arguments else False)
@@ -173,22 +188,23 @@ class Options:
             if inputdata.numVortices < 1:
                 raise RuntimeError(f'\nAt least one vortex needs to be defined in {self.configfile}')
 
-        # Check if contour plots to be translated are given
+        # Check if contour plot section is present
         if inputdata.contours_flag:
-            # Tangential flow angle plot always needed
-            if (inputdata.tanImg is None or inputdata.tanRng is None):
-                raise RuntimeError(f'\nCONTOUR TRANSLATION section present but required tangential flow angle plot information not provided in {self.configfile}')
-
             # Creation of flow field by vortex method has priority
             if inputdata.vortDefs_flag:
+                # If no command line overrides occured, only the tangential flow angle plot will be used to validate the flow field created with vortex method
                 self.validate = True
             # If actually reconstructing, we need an extra plot
             else:
                 self.reconstruct = True
         
         # Check if reconstruction mode
-        if (self.reconstruct and (inputdata.radImg is None or inputdata.radRng is None)):
-            raise RuntimeError(f'\nFlow angle plot information missing in {self.configfile} for flow field reconstruction')
+        if (self.reconstruct and (inputdata.tanImg is None or inputdata.tanRng is None or inputdata.radImg is None or inputdata.radRng is None)):
+            raise RuntimeError(f'\nRequired flow angle plot information missing in {self.configfile} for flow field reconstruction')
+
+        # Check if validation mode
+        if (self.validate and (inputdata.radImg is None or inputdata.radRng is None)):
+            raise RuntimeError(f'\nRequired flow angle plot information missing in {self.configfile} for flow field validation')
 
         # Check if mesh properties have been defined when needed
         if (self.makemesh and not inputdata.mesh_flag):
