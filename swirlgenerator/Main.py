@@ -19,6 +19,9 @@ def main():
         # Initialise Input object and read config file
         inputData = pre.Input(options.configfile)
 
+        # Check the inputs and set correct mode flags
+        inputData = options.checkInputs(inputData)
+
         # Create a test meshed geometry based on user inputs if requested - node coordinates of flowfield object taken from the inlet of this mesh
         if options.makemesh:
             # Throw error if mesh generation requested but no filename specified
@@ -66,6 +69,8 @@ class Options:
     def __init__(self, arguments):
         self.arguments = arguments
         self.configfile         = None
+
+        # Command line options
         self.checkboundaries    = False
         self.showplots          = False
         self.saveplots          = False
@@ -73,7 +78,7 @@ class Options:
         self.showmesh           = False
 
         # For getting help with the command line arguements
-        if (self.arguments[1] == '-help'):
+        if ('-help' in self.arguments[1]):
             print('Usage: swirlgenerator [config file] [options]')
             print('Options:')
             print('-checkboundaries         Runs the function which checks if the boundary conditions have been satisfied')
@@ -83,9 +88,10 @@ class Options:
             print('-showmesh                Renders the mesh using GMSH GUI - beware this can be very slow with large meshes')
 
         else:
-            self.__checkoptions__(arguments)
+            self.__checkargs__()
 
-    def __checkoptions__(self, arguments):
+
+    def __checkargs__(self):
         '''
         Checks command line arguments and sets flags appropriately
         - Internal function, should not be used outside Main.py
@@ -93,25 +99,80 @@ class Options:
         '''
 
         # Configuration file name
-        if (len(arguments) < 2) or (arguments[1].find('-') == 0):
+        if (len(self.arguments) < 2) or (self.arguments[1].find('-') == 0):
             raise RuntimeError('Configuration file missing')
         else:
-            self.configfile = arguments[1]
+            self.configfile = self.arguments[1]
 
         # Check validity of boundary conditions
-        self.checkboundaries = (True if '-checkboundaries' in arguments else False)
+        self.checkboundaries = (True if '-checkboundaries' in self.arguments else False)
 
         # Make a simple meshed geometry to test the boundary condition
-        self.makemesh = (True if '-makemesh' in arguments else False)
+        self.makemesh = (True if '-makemesh' in self.arguments else False)
 
         # Show created test mesh
-        self.showmesh = (True if '-showmesh' in arguments else False)
+        self.showmesh = (True if '-showmesh' in self.arguments else False)
 
         # Show plots
-        self.showFields = (True if '-show' in arguments else False)
+        self.showFields = (True if ('-show' in self.arguments or '-showplots' in self.arguments) else False)
 
         # Save plots
-        self.saveplots = (True if '-saveplots' in arguments else False)
+        self.saveplots = (True if '-saveplots' in self.arguments else False)
+
+
+    def checkInputs(self, inputdata: pre.Input):
+        '''
+        Checks which inputs are present from the config file and activates the correct flags for controlling 
+        - inputdata - Input object containing the fields read from the config file
+        - Output - returns the inputdata object in case we modified it in here
+        '''
+
+        # Formats supported for writing boundary conditions
+        formats = ['su2']
+
+        # Valid input shapes
+        inlet_shapes = ['circle', 'rect', 'square']
+
+        # These metadata fields are necessary for using any functionality
+        if not inputdata.metadata_flag:
+            raise RuntimeError(f'\nMetadata missing in file {self.configfile}')
+        if (inputdata.filename is None or inputdata.format is None or inputdata.meshfilename is None):
+            raise RuntimeError(f'\nNon-optional metadata missing in file {self.configfile}')
+
+        # Check format specified
+        if (inputdata.format not in formats):
+            raise NotImplementedError(f"\n{format} not supported")
+
+        # Check if vortices have been defined
+        if inputdata.vortDefs_flag:
+            # Check vortex definitions
+            if inputdata.vortModel is None:
+                raise RuntimeError(f'\nVortex model to be used was not defined in {self.configfile}')
+
+            if inputdata.numVortices < 1:
+                raise RuntimeError(f'\nAt least one vortex needs to be defined in {self.configfile}')
+
+        # Check if mesh properties have been defined when needed
+        if (self.makemesh and not inputdata.mesh_flag):
+            raise RuntimeError(f'\n-makemesh option specified but no mesh properties defined in {self.configfile}')
+
+        if inputdata.mesh_flag:
+            if inputdata.shape is None:
+                raise RuntimeError(f'\nShape of inlet face must be specified in {self.configfile}')
+            if inputdata.shape not in inlet_shapes:
+                raise RuntimeError(f'\nSpecified inlet shape \'{inputdata.shape}\' in {self.configfile} is not valid')
+
+            # Check available mesh information for specific geometries
+            if (inputdata.shape == 'circle' and (inputdata.radius is None or inputdata.curveNumCells is None or inputdata.radialNumCells is None)):
+                raise RuntimeError(f'\nMissing mesh information for a circular inlet in {self.configfile}')
+
+            if ((inputdata.shape == 'rect' or inputdata.shape == 'square') and (inputdata.xSide is None or inputdata.ySide is None or inputdata.xNumCells is None or inputdata.yNumCells is None)):
+                raise RuntimeError(f'\nMissing mesh information for a rectangular inlet in {self.configfile}')
+
+        # Set defaults
+        inputdata.axialVel = (1.0 if inputdata.axialVel is None else inputdata.axialVel)
+
+        return inputdata
 
 
 if __name__ == '__main__':
