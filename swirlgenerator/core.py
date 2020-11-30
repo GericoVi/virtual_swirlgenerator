@@ -347,9 +347,8 @@ class FlowField:
 
         # Displacement of each node from vortex centres
         disp = self.coords - vortO
-        # Get axial coordinates
+        # Get radial coordinate from vortex centre - theta coordinate is the same (no rotations happening)
         r = np.abs(disp)
-        theta = np.arctan(self.coords.imag/self.coords.real)
 
         # Normalise radius for straightforward angle calculation and set cells outside vortex size to 0
         rNorm = r/vortData[2]
@@ -359,9 +358,6 @@ class FlowField:
         # Get swirl angle distribution
         swirlAngles = maxSwirlAngle*rNorm
 
-        # Transform so swirl is coherent (either clockwise or anticlockwise) - without this, the swirl profile produced is mirrored about the y axis
-        swirlAngles[(np.nan_to_num(self.coords.real * anitclockwise) < 0)] = swirlAngles[(np.nan_to_num(self.coords.real * anitclockwise) < 0)] * -1
-
         # Get tangential velocity at each cell
         tangentVel = vortData[3]*np.tan(swirlAngles)
 
@@ -369,8 +365,8 @@ class FlowField:
         theta_dot = tangentVel/r
 
         # Get velocity vector components, in-plane cartesian (assume no radial velocity)
-        velComp[:,0] = -r*theta_dot*np.sin(theta)
-        velComp[:,1] =  r*theta_dot*np.cos(theta)
+        velComp[:,0] = -r*theta_dot*np.sin(self.coords_polar.imag)
+        velComp[:,1] =  r*theta_dot*np.cos(self.coords_polar.imag)
 
         return velComp
 
@@ -432,13 +428,11 @@ class FlowField:
         Calculate swirl angles of velocity field
         '''
 
-        # Get radius
-        r = np.abs(self.coords)
         # Get theta_dot - rate of change of theta angle (rad/s)
-        theta_dot = (self.coords.real*self.velocity[:,1] - self.velocity[:,0]*self.coords.imag) / r**2
+        theta_dot = (self.coords.real*self.velocity[:,1] - self.velocity[:,0]*self.coords.imag) / self.coords_polar.real**2
 
         # Get tangential velocity
-        velTheta = r*theta_dot
+        velTheta = self.coords_polar.real*theta_dot
 
         # Get swirl angle - as defined in literature
         swirlAngle = np.arctan(velTheta/self.velocity[:,2])
