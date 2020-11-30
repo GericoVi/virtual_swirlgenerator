@@ -220,6 +220,9 @@ class FlowField:
         # Stack into the velocity attribute
         self.velocity = np.column_stack([u,v,w])
 
+        # Get swirl angle
+        self.getSwirl()
+
     
     def __boundary__(self, vortData, velComp, vortexFunc):
         '''
