@@ -98,6 +98,7 @@ class Options:
         if ('-help' in self.arguments[1]):
             print('Usage: swirlgenerator [config file] [options]')
             print('Options:')
+            print('-reconstruct             Reconstructs flow field from input contour plot images rather than vortex method - overrides priority')
             print('-checkboundaries         Runs the function which checks if the boundary conditions have been satisfied')
             print('-show                    Shows the plots of the flow fields in separate windows')
             print('-saveplots               Saves the plots into a pdf file with the same name as the config file')
@@ -120,6 +121,9 @@ class Options:
             raise RuntimeError('Configuration file missing')
         else:
             self.configfile = self.arguments[1]
+
+        # Override priority and use reconstruction method even if domain vortices have been defined
+        self.reconstruct = (True if '-reconstruct' in self.arguments else False)
 
         # Check validity of boundary conditions
         self.checkboundaries = (True if '-checkboundaries' in self.arguments else False)
@@ -181,8 +185,10 @@ class Options:
             # If actually reconstructing, we need an extra plot
             else:
                 self.reconstruct = True
-                if (inputdata.radImg is None or inputdata.radRng is None):
-                    raise RuntimeError(f'\nRadial flow angle plot information missing in {self.configfile} for flow field reconstruction')
+        
+        # Check if reconstruction mode
+        if (self.reconstruct and (inputdata.radImg is None or inputdata.radRng is None)):
+            raise RuntimeError(f'\nFlow angle plot information missing in {self.configfile} for flow field reconstruction')
 
         # Check if mesh properties have been defined when needed
         if (self.makemesh and not inputdata.mesh_flag):
