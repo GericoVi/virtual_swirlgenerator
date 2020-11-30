@@ -3,6 +3,7 @@ import writeBC as bc
 import maketestdomain as domain
 import post
 import pre
+import contour_translation as ct
 import sys
 
 
@@ -33,11 +34,23 @@ def main():
         # Intialise flow field object with coordinate system
         flowfield = sg.FlowField(inputData.getNodes())
 
-        # Initialise domain configuration object with vortex definitions
-        vortexDefs = sg.Vortices(inputObject=inputData)
+        # Create flow field with vortex method
+        if not options.reconstruct:
+            # Initialise domain configuration object with vortex definitions
+            vortexDefs = sg.Vortices(inputObject=inputData)
 
-        # Calculate velocity field
-        flowfield.computeDomain(vortexDefs, axialVel=inputData.axialVel)
+            # Calculate velocity field from effect of vortices
+            flowfield.computeDomain(vortexDefs, axialVel=inputData.axialVel)
+
+        # Reconstruct flow field from contour plots
+        else:
+            # Translate contour plot images to array of values
+            tangential = ct.Contour(inputData.tanImg, inputData.tanRng, flowfield.coords)
+            radial = ct.Contour(inputData.radImg, inputData.radRng, flowfield.coords)
+
+            # Calculate velocity field from flow angles
+            flowfield.reconstructDomain(tangential.values, radial.values, inputData.axialVel)
+
 
         # Verify boundary conditions if requested
         if options.checkboundaries:

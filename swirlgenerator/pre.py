@@ -140,14 +140,14 @@ class Input:
             # Get present inputs
             try:
                 self.tanImg = contours.get('tan_img')
-                self.tanRng = contours.get('tan_range')
+                self.tanRng = list(float(numString) for numString in contours.get('tan_range')[1:-1].split(','))
             except:
                 pass
             
             # Get information on the radial flow plot image if they are there
             try:
                 self.radImg = contours.get('rad_img')
-                self.radRng = contours.get('tan_range')
+                self.radRng = list(float(numString) for numString in contours.get('rad_range')[1:-1].split(','))
             except:
                 pass
 

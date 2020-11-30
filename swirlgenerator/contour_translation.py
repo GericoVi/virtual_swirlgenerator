@@ -8,6 +8,7 @@
 from matplotlib.pyplot import plot
 import numpy as np
 import cv2
+import os
 
 class Contour:
     '''
@@ -18,6 +19,9 @@ class Contour:
     '''
     
     def __init__(self,imgFile,range,nodes):
+        # Check file existance
+        if not os.path.exists(imgFile):
+            raise FileNotFoundError(f'{imgFile} not found')
         
         # Extract variables into object
         self.imgArray = cv2.imread(imgFile)
