@@ -15,17 +15,33 @@ class Input:
     '''
 
     def __init__(self, configfile):
-        # Intiailise all possible variables first
+        # Section flags
+        self.metadata_flag = False
+        self.vortDefs_flag = False
+        self.contours_flag = False
+        self.mesh_flag     = False
+        self.extra_flag    = False
+
+        # Intiailise all possible variables
         # Metadata
         self.filename = None
         self.format = None
         self.meshfilename = None
 
         # Vortex definitions
+        self.numVortices = None
         self.vortModel = None
         self.vortCoords = []
         self.vortStrengths = []
         self.vortRadius = []
+
+        # Contour translation inputs
+        self.tanImg = None
+        self.tanRng = []
+        self.tancmap = None
+        self.radImg = None
+        self.radRng = []
+        self.tancmap = None
 
         # Extra parameters
         self.axialVel = None
@@ -58,8 +74,13 @@ class Input:
             raise FileNotFoundError(f'{configFile} to read not found')
 
         # Check which sections are present
+        self.metadata_flag = 'METADATA' in config
+        self.vortDefs_flag = 'VORTEX DEFINITIONS' in config
+        self.contours_flag = 'CONTOUR TRANSLATION' in config
+        self.mesh_flag     = 'MESH DEFINITION' in config 
+        self.extra_flag    = 'EXTRA' in config
 
-        if ('METADATA' in config):
+        if self.metadata_flag:
             # Get section
             metadata = config['METADATA']
 
@@ -71,82 +92,31 @@ class Input:
                 self.filename = metadata.get('filename')
                 
                 # Get format to write the boundary condition in
-                format = metadata.get('format')
-                # Check if supported format
-                if (format in formats):
-                    self.format = format
-                else:
-                    raise NotImplementedError(f"{format} not supported")
+                self.format = metadata.get('format')
                 
                 # Get the mesh filename to read the inlet node coordinates from (also the filename to write a generated mesh to)
                 self.meshfilename = metadata.get('mesh')
-
-            except KeyError:
-                raise KeyError(f"Non-optional metadata missing in file {configFile}")
-
-        else:
-            raise RuntimeError(f"Metadata section missing in file {configFile}")
-
-
-
-        if ('MESH DEFINITION' in config):
-            # Get section
-            meshDefinitions = config['MESH DEFINITION']
-
-            # Get specified inlet shape
-            try:
-                self.shape = meshDefinitions.get('shape')
             except:
-                raise KeyError("Shape of inlet face must be specified")
-
-            try:
-                # Get mesh length parameters
-                self.zSide = float(meshDefinitions.get('z_side'))
-                self.zNumCells = int(meshDefinitions.get('z_num_cells'))
-
-                # Get necessary inputs for inlet shape
-                if self.shape == 'circle':
-                    # Get circle radius
-                    self.radius = float(meshDefinitions.get('radius'))
-                    # Get mesh density
-                    self.curveNumCells = int(meshDefinitions.get('quadrant_num_cells'))
-                    self.radialNumCells = int(meshDefinitions.get('radial_num_cells'))
-                    
-                elif self.shape == 'rect':
-                    # Get side lengths
-                    self.xSide = float(meshDefinitions.get('x_side'))
-                    self.ySide = float(meshDefinitions.get('y_side'))
-                    # Get mesh density
-                    self.xNumCells = int(meshDefinitions.get('x_num_cells'))
-                    self.yNumCells = int(meshDefinitions.get('y_num_cells'))
-                
-                else:
-                    raise NotImplementedError("Specified inlet shape not valid")
-
-            # Catch errors and print appropriate helpful error messages
-            except KeyError:
-                raise KeyError(f"Non-optional geometry/mesh parameters are missing in file {configFile} for {self.shape} inlet shape")
-            except ValueError:
-                raise ValueError("Invalid values defined for mesh/geometry")
+                pass
 
 
-        if ('VORTEX DEFINITIONS' in config):
+        if self.vortDefs_flag:
             # Get section
             vortexDefs = config['VORTEX DEFINITIONS']
 
             # Get number of vortices defined
-            numVortices = sum(1 for key in vortexDefs) - 1
+            self.numVortices = sum(1 for _ in vortexDefs) - 1
 
             # Check present inputs
             try:
                 self.vortModel = vortexDefs.get('vortex_model').lower()
-            except KeyError:
-                raise KeyError(f"Non-optional vortex parameters are missing in file {configFile}")
+            except:
+                pass
 
-            if (numVortices > 0):
+            if (self.numVortices > 0):
                 try:
                     # Extract the numeric data from the string for each vortex into an array
-                    for i in range(1,numVortices+1):
+                    for i in range(1,self.numVortices+1):
                         data = list(float(numString) for numString in vortexDefs.get(f"vortex{i}")[1:-1].split(','))
 
                         if (len(data) < 4):
@@ -163,13 +133,31 @@ class Input:
 
                 except ValueError:
                     raise ValueError(f"Invalid values defined for vortex parameters")
-            else:
-                raise KeyError(f"At least one vortex needs to be defined in {configFile}")
-        else:
-            raise ValueError(f"Non-optional vortex definitions section not present in file {configFile}")
+
+
+        if self.contours_flag:
+            # Get section
+            contours = config['CONTOUR TRANSLATION']
+
+            # Get present inputs
+            try:
+                self.tanImg = contours.get('tan_img')
+                self.tanRng = list(float(numString) for numString in contours.get('tan_range')[1:-1].split(','))
+                self.tancmap = contours.get('tan_cmap')
+            except:
+                pass
+            
+            # Get information on the radial flow plot image if they are there
+            try:
+                self.radImg = contours.get('rad_img')
+                self.radRng = list(float(numString) for numString in contours.get('rad_range')[1:-1].split(','))
+                self.radcmap = contours.get('rad_cmap')
+            except:
+                pass
+
 
         # Optional section
-        if ('EXTRA' in config):
+        if self.extra_flag:
             # Get section
             extraParams = config['EXTRA']
 
@@ -187,8 +175,38 @@ class Input:
             except:
                 pass
 
-        # Set defaults if values weren't set
-        self.axialVel   = (1.0 if self.axialVel is None else self.axialVel)
+
+        if self.mesh_flag:
+            # Get section
+            meshDefinitions = config['MESH DEFINITION']
+
+            # Get specified inlet shape
+            try:
+                self.shape = meshDefinitions.get('shape')
+
+                # Get mesh length parameters
+                self.zSide = float(meshDefinitions.get('z_side'))
+                self.zNumCells = int(meshDefinitions.get('z_num_cells'))
+
+                # Get necessary inputs for inlet shape
+                if self.shape == 'circle':
+                    # Get circle radius
+                    self.radius = float(meshDefinitions.get('radius'))
+                    # Get mesh density
+                    self.curveNumCells = int(meshDefinitions.get('quadrant_num_cells'))
+                    self.radialNumCells = int(meshDefinitions.get('radial_num_cells'))
+                    
+                elif (self.shape == 'rect' or self.shape == 'square'):
+                    # Get side lengths
+                    self.xSide = float(meshDefinitions.get('x_side'))
+                    self.ySide = float(meshDefinitions.get('y_side'))
+                    # Get mesh density
+                    self.xNumCells = int(meshDefinitions.get('x_num_cells'))
+                    self.yNumCells = int(meshDefinitions.get('y_num_cells'))
+
+            # Catch errors 
+            except ValueError:
+                raise ValueError("Invalid values defined for mesh/geometry")
 
 
     def getNodes(self):

@@ -93,6 +93,11 @@ class FlowField:
         self.coords.real[self.coords.real == 0] = 1e-32
         self.coords.imag[self.coords.imag == 0] = 1e-32
 
+        # Also store coordinates in polar axis for convenience
+        radius = np.abs(self.coords)
+        theta = np.arctan2(self.coords.imag, self.coords.real)
+        self.coords_polar = radius + 1j * theta
+
         # Set boundaryCurve attribute - ie the nodes which make up the domain boundary
         self.__getBoundary__()
 
@@ -179,6 +184,41 @@ class FlowField:
 
         # Stack velocity grids into multidimensional array
         self.velocity = np.column_stack([vel_UV,W])
+
+        # Get swirl angle
+        self.getSwirl()
+
+
+    def reconstructDomain(self, tangential_angles, radial_angles, axialVel, degrees=True):
+        '''
+        Reconstructs the velocity field at the inlet using the tangential and radial flow angles
+        - tangential_angles - tangential flow angle, atan(vel_theta/vel_z), flat array with order corresponding to the nodes list
+        - radial_angles - radial flow angle, atan(vel_r/vel_z), flat array with order corresponding to the nodes list
+        - axialVel - mean axial velocity of the bulk flow (streamwise velocity)
+        - degrees - flag to choose what angle units the inputs use, degrees by default
+        '''
+        
+        # Convert to radians if necessary
+        if degrees:
+            tangential_angles = np.deg2rad(tangential_angles)
+            radial_angles = np.deg2rad(radial_angles)
+
+        # Get velocities in polar coordinate system
+        vel_theta = np.tan(tangential_angles)*axialVel
+        r_dot = np.tan(radial_angles)*axialVel
+
+        # Get theta dot
+        theta_dot = vel_theta/self.coords_polar.real
+
+        # Get velocity field in Cartesian system
+        u = r_dot*np.cos(self.coords_polar.imag) - self.coords_polar.real*theta_dot*np.sin(self.coords_polar.imag)
+        v = r_dot*np.sin(self.coords_polar.imag) + self.coords_polar.real*theta_dot*np.cos(self.coords_polar.imag)
+
+        # Assume a uniform streamwise velocity
+        w = np.ones(u.shape[0])*axialVel
+
+        # Stack into the velocity attribute
+        self.velocity = np.column_stack([u,v,w])
 
         # Get swirl angle
         self.getSwirl()
@@ -310,9 +350,8 @@ class FlowField:
 
         # Displacement of each node from vortex centres
         disp = self.coords - vortO
-        # Get axial coordinates
+        # Get radial coordinate from vortex centre - theta coordinate is the same (no rotations happening)
         r = np.abs(disp)
-        theta = np.arctan(self.coords.imag/self.coords.real)
 
         # Normalise radius for straightforward angle calculation and set cells outside vortex size to 0
         rNorm = r/vortData[2]
@@ -322,9 +361,6 @@ class FlowField:
         # Get swirl angle distribution
         swirlAngles = maxSwirlAngle*rNorm
 
-        # Transform so swirl is coherent (either clockwise or anticlockwise) - without this, the swirl profile produced is mirrored about the y axis
-        swirlAngles[(np.nan_to_num(self.coords.real * anitclockwise) < 0)] = swirlAngles[(np.nan_to_num(self.coords.real * anitclockwise) < 0)] * -1
-
         # Get tangential velocity at each cell
         tangentVel = vortData[3]*np.tan(swirlAngles)
 
@@ -332,8 +368,8 @@ class FlowField:
         theta_dot = tangentVel/r
 
         # Get velocity vector components, in-plane cartesian (assume no radial velocity)
-        velComp[:,0] = -r*theta_dot*np.sin(theta)
-        velComp[:,1] =  r*theta_dot*np.cos(theta)
+        velComp[:,0] = -r*theta_dot*np.sin(self.coords_polar.imag)
+        velComp[:,1] =  r*theta_dot*np.cos(self.coords_polar.imag)
 
         return velComp
 
@@ -395,13 +431,11 @@ class FlowField:
         Calculate swirl angles of velocity field
         '''
 
-        # Get radius
-        r = np.abs(self.coords)
         # Get theta_dot - rate of change of theta angle (rad/s)
-        theta_dot = (self.coords.real*self.velocity[:,1] - self.velocity[:,0]*self.coords.imag) / r**2
+        theta_dot = (self.coords.real*self.velocity[:,1] - self.velocity[:,0]*self.coords.imag) / self.coords_polar.real**2
 
         # Get tangential velocity
-        velTheta = r*theta_dot
+        velTheta = self.coords_polar.real*theta_dot
 
         # Get swirl angle - as defined in literature
         swirlAngle = np.arctan(velTheta/self.velocity[:,2])
