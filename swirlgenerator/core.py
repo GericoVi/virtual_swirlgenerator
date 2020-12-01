@@ -87,8 +87,12 @@ class FlowField:
         # Some comparison and metrics
         self.swirlAngle = None
 
-        # Store coordinates of inlet nodes
-        self.coords = nodes
+        # Extract x and y coordinates of nodes as complex numbers - we're assuming that the inlet plane is parallel with the x,y plane
+        self.coords = nodes[:,0] + 1j * nodes[:,1]
+
+        # Store the z coordinate of the nodes - should be the same for all nodes because of above assumption
+        self.zCoord = nodes[0,2]
+
         # Protection for division by zero so that warnings don't come up
         self.coords.real[self.coords.real == 0] = 1e-32
         self.coords.imag[self.coords.imag == 0] = 1e-32

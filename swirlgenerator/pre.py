@@ -252,8 +252,9 @@ class Input:
 
         # Split each string to isolate the numbers, and convert to floats
         nodes = [np.array(line).astype(float) for line in np.char.split(nodes)]             # Returns list of numpy arrays
-        # Stack into a single array and extract only first two coords - assume that this is x,y and that z is 0
-        nodes = np.vstack(nodes)[:,0:2]
 
-        # Return as an array of complex numbers
-        return nodes[:,0] + 1j * nodes[:,1]
+        # Stack into a single array
+        nodes = np.vstack(nodes)
+
+        # Return array of vectors - 3D coordinate of each node
+        return nodes

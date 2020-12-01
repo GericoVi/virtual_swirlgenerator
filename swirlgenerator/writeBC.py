@@ -27,8 +27,8 @@ def writeSU2(flowField: sg.FlowField, filename):
     x = flowField.coords.real
     y = flowField.coords.imag
     
-    # Z coords at end of mesh
-    z = np.zeros(np.shape(x))
+    # Z coords of all nodes - assuming that the inlet plane is parallel to the x-y plane
+    z = np.ones(np.shape(x)) * flowField.zCoord
 
     # Extract velocity vector
     velVec = flowField.velocity
