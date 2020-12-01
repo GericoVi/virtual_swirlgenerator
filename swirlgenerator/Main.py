@@ -48,8 +48,8 @@ def main():
         # Reconstruct flow field from contour plots
         else:
             # Translate contour plot images to array of values
-            tangential = ct.Contour(inputData.tanImg, inputData.tanRng, flowfield.coords)
-            radial = ct.Contour(inputData.radImg, inputData.radRng, flowfield.coords)
+            tangential = ct.Contour(inputData.tanImg, inputData.tanRng, flowfield.coords, cmap=inputData.tancmap)
+            radial = ct.Contour(inputData.radImg, inputData.radRng, flowfield.coords, cmap=inputData.radcmap)
 
             # Calculate velocity field from flow angles
             flowfield.reconstructDomain(tangential.values, radial.values, inputData.axialVel)
@@ -59,7 +59,7 @@ def main():
         if options.validate:
             # Get the swirl angles from a contour plot if haven't already done so
             if tangential is None:
-                tangential = ct.Contour(inputData.tanImg, inputData.tanRng, flowfield.coords)
+                tangential = ct.Contour(inputData.tanImg, inputData.tanRng, flowfield.coords, cmap=inputData.tancmap)
 
             print(f'RMSE compared to estimated plot values: {flowfield.getError(tangential.values)}')
 
@@ -197,6 +197,25 @@ class Options:
             # If actually reconstructing, we need an extra plot
             else:
                 self.reconstruct = True
+
+            # See if colourmap names have been defined and turn them into actual RGB arrays
+            if (inputdata.tancmap is not None or inputdata.radcmap is not None):
+                # Do import here, not needed anywhere else
+                from matplotlib.cm import get_cmap
+
+                if inputdata.tancmap is not None:
+                    try:
+                        cmap = get_cmap(inputdata.tancmap)
+                        inputdata.tancmap = cmap(range(cmap.N))[:,0:3]
+                    except ValueError:
+                        raise ValueError(f'Invalid colourmap name {inputdata.tancmap} in {self.configfile}. See https://matplotlib.org/gallery/color/colormap_reference.html?highlight=colormap%20reference for list of available')
+
+                if inputdata.radcmap is not None:
+                    try:
+                        cmap = get_cmap(inputdata.radcmap)
+                        inputdata.radcmap = cmap(range(cmap.N))[:,0:3]
+                    except ValueError:
+                        raise ValueError(f'Invalid colourmap name {inputdata.radcmap} in {self.configfile}. See https://matplotlib.org/gallery/color/colormap_reference.html?highlight=colormap%20reference for list of available')
         
         # Check if reconstruction mode
         if (self.reconstruct and (inputdata.tanImg is None or inputdata.tanRng is None or inputdata.radImg is None or inputdata.radRng is None)):

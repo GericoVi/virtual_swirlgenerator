@@ -16,9 +16,10 @@ class Contour:
     - imgFile1 - PNG image file containing the contour plot to translate
     - range - [min, max] values which correspond to the colorbar range of the contour plot
     - nodes - complex coordinates of nodes on the inlet plane (extracted from mesh)
+    - cmap - a colourmap can be given instead of extracting it from the image, an array list of RGB values of shape (n,3)
     '''
     
-    def __init__(self,imgFile,range,nodes):
+    def __init__(self,imgFile,range,nodes,cmap=None):
         # Check file existance
         if not os.path.exists(imgFile):
             raise FileNotFoundError(f'{imgFile} not found')
@@ -28,34 +29,42 @@ class Contour:
         self.range = range
         self.nodes = nodes
 
+        # Some flags which can be changed outside the module for advanced users
+        self.showSegmentation = False
+
         # Get the actual radius of the plot in terms of the inlet units - using the nodes, assuming that the boundary is made up of nodes
         self.duct_radius = max(abs(self.nodes))
 
         # Get values of contour plot at nodes during initialisation and store into an attribute 
         # - makes outside workflows more streamlined, while keeping flexibility for calling individual methods after
-        self.values = self.translateContour()
+        self.values = self.translateContour(cmap)
 
 
-    def translateContour(self):
+    def translateContour(self,cmap=None):
         '''
         Main function which will be called outside this module, contains the workflow for reading in the contour plot image and extracting the values used to plot
+        - cmap - a colourmap can be given instead of extracting it from the image, an array list of RGB values of shape (n,3)
         - Outputs a flat numpy array with the order of values corresponding to the input nodes
         '''
 
+        # If a colourmap has been provided already, we don't need to look for the colour bar in the image
+        getColourbar = (True if cmap is None else False)
+
         # Get the bounding circle/box of the contour plot and colour bar
-        boundaries = self.segmentImage(self.imgArray)
+        boundaries = self.segmentImage(self.imgArray, getColourbar, showresult=self.showSegmentation)
 
         # Get the pixels within the plot and their coords in terms of the inlet dimensions
         plotPixels = self.getPlotPixels(self.imgArray, boundaries[0])
 
-        # Extract the colourmap associated to this plot from the image
-        cmap = self.__getCmap__(self.imgArray, boundaries[1])
+        if cmap is None:
+            # Extract the colourmap associated to this plot from the image if needed
+            cmap = self.__getCmap__(self.imgArray, boundaries[1])
 
         # Get actual values at nodes
         return self.getValuesAtNodes(plotPixels, cmap, self.nodes, self.range)
 
 
-    def segmentImage(self, imgArray, showresult=False):
+    def segmentImage(self, imgArray, getColourbar=True, showresult=False):
         '''
         Segments the input image and returns data on the bounding circle of the plot and the bounding rectangle of the colour bar 
         - imgArray - numpy array of the 3 channel BGR image
@@ -77,8 +86,11 @@ class Contour:
         # Get edges as contours (lists of points) - as just a list with no hierarchical relationships (we don't need the hierarchy) and with no approximation so all points within the contour are returned
         contours, _ = cv2.findContours(canny_edges,cv2.RETR_LIST,cv2.CHAIN_APPROX_NONE)
 
-        # Find the bounding rectangle for the colour bar and extract the colour map RGB
-        colourbar_box = self.__findColourbar__(imgGeom, contours, drawing=img)
+        # Find the bounding rectangle for the colour bar if needed
+        if getColourbar:
+            colourbar_box = self.__findColourbar__(imgGeom, contours, drawing=img)
+        else:
+            colourbar_box = None
 
         # Find the bounding circle for the plot
         plot_circle = self.__findPlot__(imgGeom, contours, drawing=img)
@@ -172,7 +184,7 @@ class Contour:
         '''
         Extracts the RGB values of the levels within the colourbar
         - Internal function, should not be used outside Contours class
-        - imgArray - 3 channel array of the BGR image
+        - imgArray - 3 channel array of the BGR image (from opencv imread)
         - boundingbox - bounding box containing the colour bar, obtained from __findColourbar__
         '''
 
@@ -186,6 +198,9 @@ class Contour:
 
         # Normalise RGB values
         cmap = colourbar / 255
+
+        # Transform to RGB
+        cmap = np.column_stack([cmap[:,2],cmap[:,1],cmap[:,0]])
 
         return cmap
 
@@ -239,11 +254,11 @@ class Contour:
         return ((plotCoords),(plotPixels))
         
 
-    def getValuesAtNodes(self, plotPixels, cmap_BGR, nodes, range):
+    def getValuesAtNodes(self, plotPixels, cmap, nodes, range):
         '''
         Gets the numerical values associated with the contour plot at the node points
         - plotPixels - tuple containing the BGR values of the pixels and their coordinates, [[complex coords], [R,G,B]], output of getPlotPixels()
-        - cmap_BGR - colour map associated with the contour plot being translated, list of BGR values of the levels
+        - cmap - colour map associated with the contour plot being translated, list of RGB values of the levels
         - nodes - coordinates of points to sample
         - range - [min,max] values of the colour bar corresponding with the contour plot
         '''
@@ -252,14 +267,8 @@ class Contour:
         pixelCoords = plotPixels[0]
         pixelBGRs = plotPixels[1]
 
-        # RGB = np.squeeze(np.dstack([pixelBGRs[:,2],pixelBGRs[:,1],pixelBGRs[:,0]]))
-
-        # from matplotlib import pyplot as plt
-        # plt.figure()
-        # plt.gca().set_aspect('equal', adjustable='box')
-        # plt.title('Inlet mesh')
-        # plt.scatter(pixelCoords.real,pixelCoords.imag,marker='.',c=RGB)
-        # plt.show()
+        # Transform colour map to BGR, to match the pixel values read by opencv
+        cmap = np.column_stack([cmap[:,2],cmap[:,1],cmap[:,0]])
 
         # For storing the corresponding level of the pixels' colour at that node within the colourmap
         levels = np.array([None]*len(nodes))
@@ -273,10 +282,10 @@ class Contour:
             BGR = pixelBGRs[closest_idx]
             
             # Get index of closest closer to this value from the colour map levels, by getting the Euclidean distance in a 3D space where B,G,R are the dimensions
-            level_idx = np.argmin(np.linalg.norm((cmap_BGR - BGR), axis=1))
+            level_idx = np.argmin(np.linalg.norm((cmap - BGR), axis=1))
 
             # Normalise
-            levels[i] = level_idx/cmap_BGR.shape[0]
+            levels[i] = level_idx/cmap.shape[0]
 
         # Map these levels to the actual value range and output
         return np.array((levels*(range[1]-range[0]) + range[0]), dtype=float)

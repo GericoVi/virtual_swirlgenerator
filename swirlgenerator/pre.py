@@ -37,9 +37,11 @@ class Input:
 
         # Contour translation inputs
         self.tanImg = None
-        self.radImg = None
         self.tanRng = []
+        self.tancmap = None
+        self.radImg = None
         self.radRng = []
+        self.tancmap = None
 
         # Extra parameters
         self.axialVel = None
@@ -141,6 +143,7 @@ class Input:
             try:
                 self.tanImg = contours.get('tan_img')
                 self.tanRng = list(float(numString) for numString in contours.get('tan_range')[1:-1].split(','))
+                self.tancmap = contours.get('tan_cmap')
             except:
                 pass
             
@@ -148,6 +151,7 @@ class Input:
             try:
                 self.radImg = contours.get('rad_img')
                 self.radRng = list(float(numString) for numString in contours.get('rad_range')[1:-1].split(','))
+                self.radcmap = contours.get('rad_cmap')
             except:
                 pass
 
