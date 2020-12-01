@@ -82,6 +82,9 @@ def main():
         if options.showFields:
             plots.plotAll(swirlAxisRange=inputData.swirlPlotRange, swirlAxisNTicks=inputData.swirlPlotNTicks)
 
+        # Show inlet nodes if requested
+        if options.showinletnodes:
+            plots.showInletNodes()
 
 
 class Options:
@@ -100,6 +103,7 @@ class Options:
         self.saveplots          = False
         self.makemesh           = False
         self.showmesh           = False
+        self.showinletnodes     = False
 
         # Options based on the inputs in config file
         self.reconstruct = False            # Are we reconstructing the flow field from contour plots or creating from discrete vortices
@@ -116,6 +120,7 @@ class Options:
             print('-saveplots               Saves the plots into a pdf file with the same name as the config file')
             print('-makemesh                Creates a meshed empty domain with the parameters defined in the config file')
             print('-showmesh                Renders the mesh using GMSH GUI - beware this can be very slow with large meshes')
+            print('-showinletnodes          For plotting the inlet nodes - for confirming correct extraction of nodes from mesh')
 
         else:
             self.__checkargs__()
@@ -155,6 +160,9 @@ class Options:
         # Save plots
         self.saveplots = (True if '-saveplots' in self.arguments else False)
 
+        # Show inlet nodes
+        self.showinletnodes = (True if '-showinletnodes' in self.arguments else False)
+
 
     def checkInputs(self, inputdata: pre.Input):
         '''
@@ -190,13 +198,21 @@ class Options:
 
         # Check if contour plot section is present
         if inputdata.contours_flag:
-            # Creation of flow field by vortex method has priority
+            # If both vortex definition and contour translation section present and no command line overrside given, user needs to pick preferred method
             if inputdata.vortDefs_flag:
-                # If no command line overrides occured, only the tangential flow angle plot will be used to validate the flow field created with vortex method
-                self.validate = True
-            # If actually reconstructing, we need an extra plot
-            else:
-                self.reconstruct = True
+                while True:
+                    choice = input(f'Vortex definitions section and contour translation section both present in {self.configfile}.\nChoose flow field calculation method (V/R):')
+
+                    if choice.lower() == 'v' or choice.lower() == 'r':
+                        if choice.lower() == 'r':
+                            self.reconstruct =  True
+                        else:
+                            self.reconstruct = False
+                        
+                        break
+                    else:
+                        print('Invalid choice')
+                        continue
 
             # See if colourmap names have been defined and turn them into actual RGB arrays
             if (inputdata.tancmap is not None or inputdata.radcmap is not None):
