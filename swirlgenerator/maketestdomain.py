@@ -23,6 +23,7 @@ def testDomain(InputData: pre.Input, meshfilename, showmesh=False, verbose=False
     domains = {'circle': simpleCylinder, 'rect': simpleBox}
 
     # Initialise gmsh api
+    print('Generating mesh...')
     gmsh.initialize()
 
     # Set verbosity level
@@ -34,7 +35,6 @@ def testDomain(InputData: pre.Input, meshfilename, showmesh=False, verbose=False
     gmsh.option.setNumber("General.Verbosity", verbosity)
 
     # Call appropriate function using handle to create the geometry and mesh settings
-    print('Creating geometry...')
     func = domains.get(InputData.shape)
     func(InputData)
 
@@ -42,7 +42,6 @@ def testDomain(InputData: pre.Input, meshfilename, showmesh=False, verbose=False
     gmsh.model.geo.synchronize()
 
     # Generate 3D mesh
-    print('Generating mesh...')
     gmsh.model.mesh.generate(3)
 
     # Write mesh to file
