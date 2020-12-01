@@ -1,8 +1,0 @@
-bulkswirl_tangential= (0,20)
-bulkswirl_radial= (-5,5)
-twinswirl_tangential= (-20,20)
-twinswirl_radial= (-20,20)
-offsetswirl1_tangential= (-20,20)
-offsetswirl1_radial= (-20,20)
-offsetswirl2_tangential= (-20,20)
-offsetswirl2_radial= (-20,20)
