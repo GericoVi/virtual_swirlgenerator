@@ -206,10 +206,6 @@ class Options:
         if (self.validate and (inputdata.radImg is None or inputdata.radRng is None)):
             raise RuntimeError(f'\nRequired flow angle plot information missing in {self.configfile} for flow field validation')
 
-        # Check if mesh properties have been defined when needed
-        if (self.makemesh and not inputdata.mesh_flag):
-            raise RuntimeError(f'\n-makemesh option specified but no mesh properties defined in {self.configfile}')
-
         if inputdata.mesh_flag:
             if inputdata.shape is None:
                 raise RuntimeError(f'\nShape of inlet face must be specified in {self.configfile}')
@@ -222,6 +218,10 @@ class Options:
 
             if ((inputdata.shape == 'rect' or inputdata.shape == 'square') and (inputdata.xSide is None or inputdata.ySide is None or inputdata.xNumCells is None or inputdata.yNumCells is None)):
                 raise RuntimeError(f'\nMissing mesh information for a rectangular inlet in {self.configfile}')
+        else:
+            # In case mesh generation has been requested in command line but no mesh properties provided in config
+            if self.makemesh:
+                raise RuntimeError(f'\n-makemesh option specified but no mesh properties defined in {self.configfile}')
 
         # Set defaults
         inputdata.axialVel = (1.0 if inputdata.axialVel is None else inputdata.axialVel)
