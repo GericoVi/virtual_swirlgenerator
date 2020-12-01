@@ -7,4 +7,4 @@ swirlGenerator.egg-info
 testharness.py
 *.zip
 *.code-workspace
-testcases/Results/Contour_Plots
+testcases/Results
