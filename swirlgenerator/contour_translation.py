@@ -5,7 +5,7 @@
 #
 # -------------------------------------------------------------------------------------------------------------------
 
-from matplotlib.pyplot import plot
+from matplotlib.pyplot import plot, show
 import numpy as np
 import cv2
 import os
@@ -19,7 +19,7 @@ class Contour:
     - cmap - a colourmap can be given instead of extracting it from the image, an array list of RGB values of shape (n,3)
     '''
     
-    def __init__(self,imgFile,range,nodes,cmap=None):
+    def __init__(self,imgFile,range,nodes,cmap=None,showSegmentation=False):
         # Check file existance
         if not os.path.exists(imgFile):
             raise FileNotFoundError(f'{imgFile} not found')
@@ -29,8 +29,8 @@ class Contour:
         self.range = range
         self.nodes = nodes
 
-        # Some flags which can be changed outside the module for advanced users
-        self.showSegmentation = False
+        # Flag for showing 
+        self.showSegmentation = showSegmentation
 
         # Get the actual radius of the plot in terms of the inlet units - using the nodes, assuming that the boundary is made up of nodes
         self.duct_radius = max(abs(self.nodes))
@@ -51,7 +51,7 @@ class Contour:
         getColourbar = (True if cmap is None else False)
 
         # Get the bounding circle/box of the contour plot and colour bar
-        boundaries = self.segmentImage(self.imgArray, getColourbar, showresult=self.showSegmentation)
+        boundaries = self.segmentImage(self.imgArray, getColourbar)
 
         # Get the pixels within the plot and their coords in terms of the inlet dimensions
         plotPixels = self.getPlotPixels(self.imgArray, boundaries[0])
@@ -64,10 +64,11 @@ class Contour:
         return self.getValuesAtNodes(plotPixels, cmap, self.nodes, self.range)
 
 
-    def segmentImage(self, imgArray, getColourbar=True, showresult=False):
+    def segmentImage(self, imgArray, getColourbar=True):
         '''
         Segments the input image and returns data on the bounding circle of the plot and the bounding rectangle of the colour bar 
         - imgArray - numpy array of the 3 channel BGR image
+        - getColourbar - flag to control if we looking for the colour bar as well
         - Output: tuple, ( (centre_xy,radius), (top_left_x, top_left_y, width, height) ), of 
         '''
 
@@ -96,7 +97,7 @@ class Contour:
         plot_circle = self.__findPlot__(imgGeom, contours, drawing=img)
 
         # Show segmented image
-        if showresult:
+        if self.showSegmentation:
             # Show with matplotlib so we can zoom
             from matplotlib import pyplot as plt
             plt.figure(), plt.imshow(cv2.cvtColor(img,cv2.COLOR_RGB2BGR))
@@ -146,7 +147,7 @@ class Contour:
         - contours - list of contours within the image obtained from call to cv2.findContours
         - drawing - 3 channel array to draw the bounding circle to, won't draw if none
         - Outputs tuple - (top_left_x, top_left_y, width, height)
-        - Assumes that the colour bar is below the contour plot, in the lower half of the image
+        - Assumes that the colour bar is below the contour plot, in the lower third of the image
         '''
 
         possible_contours = []
@@ -159,8 +160,8 @@ class Contour:
             cx = int(rectangle[0]+rectangle[2]/2)
             cy = int(rectangle[1]+rectangle[3]/2)
 
-            # Add to list if the contour is in the lower half of the image
-            if cy > imgGeom[0]/2:
+            # Add to list if the contour is in the lower third of the image (opencv has y axis positive downwards)
+            if cy > 2*imgGeom[0]/3:
                 possible_contours.append(c)
                 rectangles.append(rectangle)
 
