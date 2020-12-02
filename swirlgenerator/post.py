@@ -26,10 +26,11 @@ class Plots:
         self.xy = np.vstack([flowfield.coords.real, flowfield.coords.imag])
 
         # Store variables for plotting
-        self.vel = flowfield.velocity[:,0:2]
-        self.thermos = [flowfield.rho, flowfield.pressure]
-        self.swirlAngle = flowfield.swirlAngle
-        self.boundary = np.vstack([flowfield.boundaryCurve.real, flowfield.boundaryCurve.imag])
+        self.vel            = flowfield.velocity[:,0:2]
+        self.thermos        = [flowfield.rho, flowfield.pressure]
+        self.swirlAngle     = flowfield.swirlAngle
+        self.radialAngle    = flowfield.radialAngle
+        self.boundary       = np.vstack([flowfield.boundaryCurve.real, flowfield.boundaryCurve.imag])
 
         # Get plot density from input or try to mimic original data density
         for i,axis in enumerate(plotDensity):
@@ -128,30 +129,18 @@ class Plots:
 
     def plotSwirl(self, axisRange=[None,None], numTicks = None):
         '''
-        Create contour plot for swirl angle
+        Create contour plot for swirl (tangential flow) angle and radial flow angle
         - axisRange - specify the max and min values for the colormap
         - numTicks - specify the number of ticks to show on the colorbar
         '''
 
         # Interpolate data to a regularly spaced grid
-        swirlAngle = griddata((self.xy[0],self.xy[1]), self.swirlAngle, (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='cubic')
+        swirlAngle  = griddata((self.xy[0],self.xy[1]), self.swirlAngle, (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='cubic')
+        radialAngle = griddata((self.xy[0],self.xy[1]), self.radialAngle, (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='cubic')
 
         # Make our own reasonable max and min range if not specified
         if None in axisRange:
-            # Convert nans to zeros for statistical calcs
-            swirlAngle_noNans = np.nan_to_num(swirlAngle)
-            # Get maximum magnitude of swirl angle
-            maxMag = np.max(np.abs(swirlAngle_noNans))
-            # Choose appropriate 'round to the nearest'
-            if maxMag < 5:
-                rounding = 1
-            elif maxMag < 30:
-                rounding = 5
-            else:
-                rounding = 10
-            # Round max/min values to create range of swirl angles
-            minVal = np.floor(np.min(swirlAngle_noNans) / rounding) * rounding
-            maxVal = np.ceil(np.max(swirlAngle_noNans)  / rounding) * rounding
+            (minVal, maxVal) = self.__getContourRange__(swirlAngle)
         else:
             minVal = axisRange[0]
             maxVal = axisRange[1]
@@ -162,16 +151,27 @@ class Plots:
         # Make colormap levels
         levels = np.linspace(minVal,maxVal,101)
 
-        # Make contour plot
+        # Make contour plot for tangential flow angle
         plt.figure()
         plt.gca().set_aspect('equal', adjustable='box')
-        plt.title('Swirl angle')
+        plt.title('Tangential flow (Swirl) angle')
         # For some reason contourf doesn't like when the coordinate grids have nans in them, so using zero instead of nan versions of array
         plt.contourf(self.xy_i[0], self.xy_i[1],swirlAngle,levels=levels,cmap='jet',vmin=minVal,vmax=maxVal)
         plt.colorbar(ticks=ticks)
         plt.axis('off')
         # Draw boundary
         plt.plot(self.boundary[0], self.boundary[1],'k-')
+
+        # Make contour plot for radial flow angle
+        plt.figure()
+        plt.gca().set_aspect('equal', adjustable='box')
+        plt.title('Radial flow angle')
+        # For some reason contourf doesn't like when the coordinate grids have nans in them, so using zero instead of nan versions of array
+        plt.contourf(self.xy_i[0], self.xy_i[1],radialAngle,levels=levels,cmap='jet',vmin=minVal,vmax=maxVal)
+        plt.colorbar(ticks=ticks)
+        plt.axis('off')
+        # Draw boundary
+        plt.plot(self.boundary[0], self.boundary[1],'k-') 
 
 
     def showInletNodes(self):
@@ -200,3 +200,22 @@ class Plots:
                 pdf.savefig(fig)
 
         plt.close('all')
+
+    @staticmethod
+    def __getContourRange__(values):
+        # Convert nans to zeros for statistical calcs
+        values = np.nan_to_num(values)
+        # Get maximum magnitude of swirl angle
+        maxMag = np.max(np.abs(values))
+        # Choose appropriate 'round to the nearest'
+        if maxMag < 5:
+            rounding = 1
+        elif maxMag < 30:
+            rounding = 5
+        else:
+            rounding = 10
+        # Round max/min values to create range of swirl angles
+        minVal = np.floor(np.min(values) / rounding) * rounding
+        maxVal = np.ceil(np.max(values)  / rounding) * rounding
+
+        return (minVal,maxVal)

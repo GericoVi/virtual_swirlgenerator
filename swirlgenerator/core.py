@@ -84,8 +84,9 @@ class FlowField:
         self._sortIdx_ = None
         self.isCircle = False
 
-        # Some comparison and metrics
-        self.swirlAngle = None
+        # Some comparison and metrics for swirl
+        self.swirlAngle = None      # Tangential flow angle
+        self.radialAngle = None     # Radial flow angle
 
         # Extract x and y coordinates of nodes as complex numbers - we're assuming that the inlet plane is parallel with the x,y plane
         self.coords = nodes[:,0] + 1j * nodes[:,1]
@@ -432,7 +433,7 @@ class FlowField:
     
     def getSwirl(self):
         '''
-        Calculate swirl angles of velocity field
+        Calculate swirl (tangential flow) angles of velocity field and radial flow angles
         '''
 
         # Get theta_dot - rate of change of theta angle (rad/s)
@@ -445,6 +446,14 @@ class FlowField:
         swirlAngle = np.arctan(velTheta/self.velocity[:,2])
         # Convert to degrees
         self.swirlAngle = np.rad2deg(swirlAngle)
+
+        # Get radial velocity
+        velRad = (self.coords.real*self.velocity[:,0] + self.coords.imag*self.velocity[:,1]) / self.coords_polar.real
+
+        # Get radial flow angle
+        radialAngle = np.arctan(velRad/self.velocity[:,2])
+        # Convert to degrees
+        self.radialAngle = np.rad2deg(radialAngle)
 
     
     def getError(self, desiredSwirl):
