@@ -12,8 +12,10 @@ from matplotlib.cm import get_cmap
 
 # Get path of the swirlgenerator modules
 scriptpath = os.path.realpath(__file__)
-modulespath = '\\'.join(scriptpath.split('\\')[:5])
-modulespath = os.path.join(modulespath, 'swirlgenerator')
+folders = scriptpath.split('\\')
+idx = folders.index('Virtual_StreamVane')
+parentpath = '\\'.join(folders[:idx+1])
+modulespath = os.path.join(parentpath, 'swirlgenerator')
 
 # Insert path to to swirlgenerator during runtime so we can import them
 sys.path.insert(1, modulespath)
@@ -57,9 +59,12 @@ with open('results.txt', 'w') as f:
         print(f'Vortex method test...')
         # Create the inlet velocity field using discrete vortices
         start = time.time()
-        vortexDefs = sg.Vortices(inputObject=inputdata)
-        flowfield.computeDomain(vortexDefs, axialVel=inputdata.axialVel)
+        for s in range(10):
+            vortexDefs = sg.Vortices(inputObject=inputdata)
+            flowfield.computeDomain(vortexDefs, axialVel=inputdata.axialVel)
         end = time.time()
+
+        f.write(f'Vortex method x10 Time: {end-start}\n')
 
         # Save plots
         if not os.path.exists(f'{case}/results'):
@@ -85,11 +90,14 @@ with open('results.txt', 'w') as f:
 
             print(f'{label}...')
             start = time.time()
-            tangential = ct.Contour(tan_images[j], inputdata.tanRng, flowfield.coords, cmap=cmap)
-            radial = ct.Contour(rad_images[j], inputdata.radRng, flowfield.coords, cmap=cmap)
+            for s in range(10):
+                tangential = ct.Contour(tan_images[j], inputdata.tanRng, flowfield.coords, cmap=cmap)
+                radial = ct.Contour(rad_images[j], inputdata.radRng, flowfield.coords, cmap=cmap)
 
-            flowfield.reconstructDomain(tangential.values, radial.values, inputdata.axialVel)
+                flowfield.reconstructDomain(tangential.values, radial.values, inputdata.axialVel)
             end = time.time()
+
+            f.write(f'Reconstruction method ({label}) x10 Time: {end-start}\n')
 
             # Save plots
             if not os.path.exists(f'{case}/results'):
