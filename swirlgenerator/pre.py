@@ -6,6 +6,7 @@
 
 import numpy as np
 from configparser import ConfigParser
+import os
 
 class Input:
     '''
@@ -67,6 +68,10 @@ class Input:
     def read(self, configFile):
         # Initialise config parser and read config file
         config = ConfigParser()
+
+        # See if folder is there
+        if not os.path.exists(configFile):
+            raise FileNotFoundError(f'{configFile} to read not found')
 
         try:
             config.read(configFile)
