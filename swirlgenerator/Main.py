@@ -1,6 +1,5 @@
 import core as sg
 import writeBC as bc
-import maketestdomain as domain
 import post
 import pre
 import contour_translation as ct
@@ -29,6 +28,9 @@ def main():
 
         # Create a test meshed geometry based on user inputs if requested - node coordinates of flowfield object taken from the inlet of this mesh
         if options.makemesh:
+            # Do import here so user won't need the dependencies if they don't need this functionality
+            import maketestdomain as domain
+
             # Throw error if mesh generation requested but no filename specified
             if inputData.meshfilename is None:
                 raise RuntimeError("Mesh generation requested but no filename specified in config")
