@@ -256,7 +256,7 @@ class Options:
                         continue
 
             # See if colourmap names have been defined and turn them into actual RGB arrays
-            if (inputdata.tancmap is not None or inputdata.radcmap is not None):
+            if ((self.reconstruct or self.validate) and (inputdata.tancmap is not None or inputdata.radcmap is not None)):
                 # Do import here, not needed anywhere else
                 from matplotlib.cm import get_cmap
 
