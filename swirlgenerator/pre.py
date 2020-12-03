@@ -208,15 +208,45 @@ class Input:
 
     def getNodes(self):
         '''
-        Extracts the coordinates of the nodes which make up the inlet from an input mesh file
+        Wrapper utility function. Just calls the static method, but from the object instance
+        '''
+        return self.extractMesh(self.meshfilename)
+
+
+    @classmethod
+    def extractMesh(cls, meshfilename):
+        '''
+        Extracts the coordinates of the nodes which make up the inlet from an input mesh file. Wrapper to call correct method based on file format
+        - meshfilename - Name of the mesh file to extract the inlet node coordinates from
         '''
 
-        # Read in all lines from the file so we can index them in any order
+        # Supported formats
+        formatMap = {'su2': cls.readSU2mesh}
+
+        # Get file extension to determine format
+        format = meshfilename.split('.')[-1]
+
+        # Read in all lines from the file\
         try:
-            with open(self.meshfilename, 'r') as f:
+            with open(meshfilename, 'r') as f:
                 lines = f.readlines()
         except FileNotFoundError:
-            raise FileNotFoundError(f"Specificed mesh file {self.meshfilename} was not found")
+            raise FileNotFoundError(f"Specificed mesh file {meshfilename} was not found")
+
+        # Call correct method based on file format
+        try:
+            func = formatMap.get(format)
+            return func(lines)
+        except KeyError:
+            raise RuntimeError(f'.{format} file extension not supported for input meshes')
+
+
+    @staticmethod
+    def readSU2mesh(lines):
+        '''
+        Finds the inlet nodes and extracts their coordinates from text extracted from a .su2 mesh file
+        - lines - all lines from the file
+        '''
 
         # Get index of where the inlet boundary definition starts
         inletIdx = [i for [i,line] in enumerate(lines) if 'inlet' in line.lower()]
