@@ -196,10 +196,18 @@ class Options:
             if inputdata.numVortices < 1:
                 raise RuntimeError(f'\nAt least one vortex needs to be defined in {self.configfile}')
 
+        # Check if reconstruction mode
+        if (self.reconstruct and (inputdata.tanImg is None or inputdata.tanRng is None or inputdata.radImg is None or inputdata.radRng is None)):
+            raise RuntimeError(f'\nRequired flow angle plot information missing in {self.configfile} for flow field reconstruction')
+
+        # Check if validation mode
+        if (self.validate and (inputdata.radImg is None or inputdata.radRng is None)):
+            raise RuntimeError(f'\nRequired flow angle plot information missing in {self.configfile} for flow field validation')
+
         # Check if contour plot section is present
         if inputdata.contours_flag:
             # If both vortex definition and contour translation section present and no command line overrside given, user needs to pick preferred method
-            if inputdata.vortDefs_flag:
+            if inputdata.vortDefs_flag and not self.reconstruct:
                 while True:
                     choice = input(f'Vortex definitions section and contour translation section both present in {self.configfile}.\nChoose flow field calculation method (V/R):')
 
@@ -232,14 +240,6 @@ class Options:
                         inputdata.radcmap = cmap(range(cmap.N))[:,0:3]
                     except ValueError:
                         raise ValueError(f'Invalid colourmap name {inputdata.radcmap} in {self.configfile}. See https://matplotlib.org/gallery/color/colormap_reference.html?highlight=colormap%20reference for list of available')
-        
-        # Check if reconstruction mode
-        if (self.reconstruct and (inputdata.tanImg is None or inputdata.tanRng is None or inputdata.radImg is None or inputdata.radRng is None)):
-            raise RuntimeError(f'\nRequired flow angle plot information missing in {self.configfile} for flow field reconstruction')
-
-        # Check if validation mode
-        if (self.validate and (inputdata.radImg is None or inputdata.radRng is None)):
-            raise RuntimeError(f'\nRequired flow angle plot information missing in {self.configfile} for flow field validation')
 
         if inputdata.mesh_flag:
             if inputdata.shape is None:
