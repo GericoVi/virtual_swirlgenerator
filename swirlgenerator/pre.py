@@ -6,7 +6,6 @@
 
 import numpy as np
 from configparser import ConfigParser
-import os
 
 class Input:
     '''
