@@ -100,7 +100,7 @@ class Contour:
         if self.showSegmentation:
             # Show with matplotlib so we can zoom
             from matplotlib import pyplot as plt
-            plt.figure(), plt.imshow(cv2.cvtColor(img,cv2.COLOR_RGB2BGR))
+            plt.figure(), plt.imshow(cv2.cvtColor(img,cv2.COLOR_BGR2RGB))
             plt.show()
 
         # Form output tuple
@@ -124,7 +124,7 @@ class Contour:
         image_area = imgGeom[0]*imgGeom[1]
 
         # Get the contours which are larger than half the whole image area - these will probably be the edges around the contour plot
-        possible_contours = [contour for contour in contours if cv2.contourArea(contour) >= 0.5*image_area]
+        possible_contours = [contour for contour in contours if cv2.contourArea(contour) >= 0.3*image_area]
 
         # The smallest contour out of these will probably be the one at the edge of the plot
         plot_edge_idx = np.argmin([cv2.contourArea(contour) for contour in possible_contours])
@@ -160,8 +160,8 @@ class Contour:
             cx = int(rectangle[0]+rectangle[2]/2)
             cy = int(rectangle[1]+rectangle[3]/2)
 
-            # Add to list if the contour is in the lower third of the image (opencv has y axis positive downwards)
-            if cy > 2*imgGeom[0]/3:
+            # Add to list if the contour is in the outer quarters of the image (opencv has y axis positive downwards)
+            if (cy > 3*imgGeom[0]/4 or cy < imgGeom[0]/4 or cx > 3*imgGeom[1]/4 or cx < imgGeom[1]/4):
                 possible_contours.append(c)
                 rectangles.append(rectangle)
 
@@ -189,13 +189,24 @@ class Contour:
         - boundingbox - bounding box containing the colour bar, obtained from __findColourbar__
         '''
 
-        # Coordinates of start and end of colour bar - sampling at a point on the lower third of the box, less sensitivity to inaccuracies in bounding box
-        colourbar_start = [boundingbox[0], boundingbox[1]+2*int(boundingbox[3]/3)]
-        colourbar_end   = [boundingbox[0]+boundingbox[2], boundingbox[1]+2*int(boundingbox[3])]
+        # Check if colour bar is horizontal or vertical and extract list of rgb levels based on this
+        if boundingbox[2] > boundingbox[3]:
+            # Coordinates of start and end of colour bar - sampling at a point on the lower third of the box, less sensitivity to inaccuracies in bounding box
+            colourbar_start = [boundingbox[0], boundingbox[1]+2*int(boundingbox[3]/3)]
+            colourbar_end   = [boundingbox[0]+boundingbox[2], boundingbox[1]+2*int(boundingbox[3])]
 
-        # Get list of RGB values for colourmap - by getting the pixels in the colourbar, truncate start an end to leave out the black boundary
-        # Depending on the accuracy of the opencv bounding box, this colourmap could be only an approximation of the actual range
-        colourbar = imgArray[colourbar_start[1],colourbar_start[0]+2:colourbar_end[0]-2, :]
+            # Get list of RGB values for colourmap - by getting the pixels in the colourbar, truncate start an end to leave out the black boundary
+            # Depending on the accuracy of the opencv bounding box, this colourmap could be only an approximation of the actual range
+            colourbar = imgArray[colourbar_start[1],colourbar_start[0]+2:colourbar_end[0]-2, :]
+        else:
+            # Coordinates of start and end of colour bar - sampling at a point on the left third of the box, less sensitivity to inaccuracies in bounding box
+            # Also, flipped compared to above since opencv y axis is positive downwards
+            colourbar_start   = [boundingbox[0]+int(boundingbox[2]/3), boundingbox[1]+boundingbox[3]]
+            colourbar_end = [boundingbox[0]+int(boundingbox[2]/3), boundingbox[1]]
+
+            # Get list of RGB values for colourmap - by getting the pixels in the colourbar, truncate start an end to leave out the black boundary
+            # Depending on the accuracy of the opencv bounding box, this colourmap could be only an approximation of the actual range
+            colourbar = imgArray[colourbar_start[1]+2:-1:colourbar_end[1]-2,colourbar_start[0], :]
 
         # Normalise RGB values
         cmap = colourbar / 255
