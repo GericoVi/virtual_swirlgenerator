@@ -5,7 +5,6 @@
 #
 # -------------------------------------------------------------------------------------------------------------------
 
-from matplotlib.pyplot import plot, show
 import numpy as np
 import cv2
 import os
