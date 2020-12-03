@@ -5,6 +5,7 @@ import post
 import pre
 import contour_translation as ct
 import sys
+import os
 
 
 def main():
@@ -15,16 +16,16 @@ def main():
     # Get command line options
     options = Options(sys.argv)
 
-    # Only try to generate boundary condition if the config file has been specified
-    if options.configfile is not None:
+    # Initialise Input object and read config file
+    inputData = pre.Input(options.configfile)
+
+    # Check the inputs and set correct mode flags
+    inputData = options.checkInputs(inputData)
+    
+    # Generate boundary condition if no exit conditions were reached when checking inputs
+    if not options.exit:
         # Initialise some things for later
         tangential = None
-
-        # Initialise Input object and read config file
-        inputData = pre.Input(options.configfile)
-
-        # Check the inputs and set correct mode flags
-        inputData = options.checkInputs(inputData)
 
         # Create a test meshed geometry based on user inputs if requested - node coordinates of flowfield object taken from the inlet of this mesh
         if options.makemesh:
@@ -86,6 +87,9 @@ def main():
         if options.showinletnodes:
             plots.showInletNodes()
 
+    else:
+        print('Exiting...')
+
 
 class Options:
     '''
@@ -108,6 +112,9 @@ class Options:
         # Options based on the inputs in config file
         self.reconstruct = False            # Are we reconstructing the flow field from contour plots or creating from discrete vortices
         self.validate = False               # Are we getting the error between the created flow field and a swirl angle contour plot
+
+        # For exiting
+        self.exit = False
 
         # For getting help with the command line arguements
         if ('-help' in self.arguments[1]):
@@ -138,6 +145,10 @@ class Options:
             raise RuntimeError('Configuration file missing')
         else:
             self.configfile = self.arguments[1]
+
+        # Check if config file exists
+        if not os.path.exists(self.configfile):
+            raise RuntimeError(f'Configuration file {self.configfile} not found')
 
         # Override priority and use reconstruction method even if domain vortices have been defined
         self.reconstruct = (True if '-reconstruct' in self.arguments else False)
@@ -211,12 +222,11 @@ class Options:
                 while True:
                     choice = input(f'Vortex definitions section and contour translation section both present in {self.configfile}.\nChoose flow field calculation method (V/R):')
 
-                    if choice.lower() == 'v' or choice.lower() == 'r':
-                        if choice.lower() == 'r':
-                            self.reconstruct =  True
-                        else:
-                            self.reconstruct = False
-                        
+                    if choice.lower() == 'r':
+                        self.reconstruct =  True
+                        break
+                    elif choice.lower() == 'v':
+                        self.reconstruct = False
                         break
                     else:
                         print('Invalid choice')
@@ -257,6 +267,21 @@ class Options:
             # In case mesh generation has been requested in command line but no mesh properties provided in config
             if self.makemesh:
                 raise RuntimeError(f'\n-makemesh option specified but no mesh properties defined in {self.configfile}')
+
+        # If no makemesh option given but mesh file in config can't be found, inform user
+        if (not self.makemesh and not os.path.exists(inputdata.meshfilename)):
+            while True:
+                txt = input(f'Specified mesh file {inputdata.meshfilename} was not found and -makemesh option not given.\nGenerate the mesh using properties in config file? [Y/N]')
+
+                if txt.lower() == 'y':
+                    self.makemesh = True
+                    break
+                elif txt.lower() == 'n':
+                    self.exit = True
+                    break
+                else:
+                    print('Invalid choice')
+                    continue
 
         # Set defaults
         inputdata.axialVel = (1.0 if inputdata.axialVel is None else inputdata.axialVel)
