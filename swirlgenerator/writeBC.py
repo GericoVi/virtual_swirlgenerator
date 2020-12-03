@@ -67,4 +67,6 @@ def writeInlet(InputObject: pre.Input, flowField: sg.FlowField):
 
     # Write boundary condition in correct format
     func = formats.get(InputObject.format)
+    print('Writing boundary condition...')
     func(flowField, InputObject.filename)
+    print(f'Inlet BC written to {InputObject.filename}')
