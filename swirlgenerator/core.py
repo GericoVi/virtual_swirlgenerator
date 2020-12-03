@@ -8,6 +8,7 @@
 import numpy as np
 from typing import Union
 import pre
+import alphashape
 
 '''
 Heavy use of numpy for fast matrix and vector operations
@@ -117,9 +118,6 @@ class FlowField:
         - boundaryCurve stores the points (in order) which make up the boundary, as complex numbers
         - _sortIdx_ is an internal attribute, index order to sort boundary cells, for connecting them correctly
         '''
-
-        # Do alphashape import here, not needed anywhere else
-        import alphashape
 
         # Get points into array format
         points = np.column_stack([self.coords.real, self.coords.imag])
