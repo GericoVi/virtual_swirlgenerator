@@ -162,6 +162,12 @@ class Plots:
         # Draw boundary
         plt.plot(self.boundary[0], self.boundary[1],'k-')
 
+        if len(axisRange) > 2:
+            minVal = axisRange[2]
+            maxVal = axisRange[3]
+            ticks = np.linspace(minVal,maxVal,numTicks)
+            levels = np.linspace(minVal,maxVal,101)
+
         # Make contour plot for radial flow angle
         plt.figure()
         plt.gca().set_aspect('equal', adjustable='box')
