@@ -1,9 +1,6 @@
 import core as sg
 import writeBC as bc
-import maketestdomain as domain
-import post
 import pre
-import contour_translation as ct
 import sys
 import os
 
@@ -29,6 +26,12 @@ def main():
 
         # Create a test meshed geometry based on user inputs if requested - node coordinates of flowfield object taken from the inlet of this mesh
         if options.makemesh:
+            # Do import here for optional functionality
+            try:
+                import maketestdomain as domain
+            except ImportError as error:
+                raise ImportError(f'Required dependencies missing for optional mesh generation functionality:\n{error.message}')
+
             # Throw error if mesh generation requested but no filename specified
             if inputData.meshfilename is None:
                 raise RuntimeError("Mesh generation requested but no filename specified in config")
@@ -48,6 +51,12 @@ def main():
 
         # Reconstruct flow field from contour plots
         else:
+            # Do import here for optional functionality
+            try:
+                import contour_translation as ct
+            except ImportError as error:
+                raise ImportError(f'Required dependencies missing for contour translation capability:\n{error.message}')
+            
             # Translate contour plot images to array of values
             tangential = ct.Contour(inputData.tanImg, inputData.tanRng, flowfield.coords, cmap=inputData.tancmap)
             radial = ct.Contour(inputData.radImg, inputData.radRng, flowfield.coords, cmap=inputData.radcmap)
@@ -58,6 +67,12 @@ def main():
 
         # Get RMSE between calculated swirl angle field and that estimated from contour plot image if requested
         if options.validate:
+            # Do import here for optional functionality
+            try:
+                import contour_translation as ct
+            except ImportError as error:
+                raise ImportError(f'Required dependencies missing for contour translation capability:\n{error.message}')
+
             # Get the swirl angles from a contour plot if haven't already done so
             if tangential is None:
                 tangential = ct.Contour(inputData.tanImg, inputData.tanRng, flowfield.coords, cmap=inputData.tancmap)
@@ -71,21 +86,29 @@ def main():
         # Write inlet boundary condition file
         bc.writeInlet(InputObject=inputData, flowField=flowfield)
 
-        # Initialise plotting object
-        plots = post.Plots(flowfield)
 
-        # Save flow fields in pdf if requested - name the pdf the same as the boundary condition .dat file
-        if options.saveplots:
-            pdfname = options.configfile.split('.')[0]
-            plots.plotAll(pdfName=f'{pdfname}.pdf', swirlAxisRange=inputData.swirlPlotRange, swirlAxisNTicks=inputData.swirlPlotNTicks)
+        if options.saveplots or options.showFields or options.showinletnodes:
+            # Do import here - so that the dependencies associated to the 'post' module only need to be installed in using the post processing functions
+            try:
+                import post
+            except ImportError as error:
+                raise ImportError(f'Required dependencies missing for post processing module:\n{error.message}')
 
-        # Show flow fields if requested
-        if options.showFields:
-            plots.plotAll(swirlAxisRange=inputData.swirlPlotRange, swirlAxisNTicks=inputData.swirlPlotNTicks)
+            # Initialise plotting object
+            plots = post.Plots(flowfield)
 
-        # Show inlet nodes if requested
-        if options.showinletnodes:
-            plots.showInletNodes()
+            # Save flow fields in pdf if requested - name the pdf the same as the boundary condition .dat file
+            if options.saveplots:
+                pdfname = options.configfile.split('.')[0]
+                plots.plotAll(pdfName=f'{pdfname}.pdf', swirlAxisRange=inputData.swirlPlotRange, swirlAxisNTicks=inputData.swirlPlotNTicks)
+
+            # Show flow fields if requested
+            if options.showFields:
+                plots.plotAll(swirlAxisRange=inputData.swirlPlotRange, swirlAxisNTicks=inputData.swirlPlotNTicks)
+
+            # Show inlet nodes if requested
+            if options.showinletnodes:
+                plots.showInletNodes()
 
     else:
         print('Exiting...')
