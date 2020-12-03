@@ -69,14 +69,7 @@ class Input:
         # Initialise config parser and read config file
         config = ConfigParser()
 
-        # See if folder is there
-        if not os.path.exists(configFile):
-            raise FileNotFoundError(f'{configFile} to read not found')
-
-        try:
-            config.read(configFile)
-        except FileNotFoundError:
-            raise FileNotFoundError(f'{configFile} to read not found')
+        config.read(configFile)
 
         # Check which sections are present
         self.metadata_flag = 'METADATA' in config
