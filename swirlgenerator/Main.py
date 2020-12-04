@@ -15,82 +15,83 @@ def main():
     # Get command line options
     options = Options(sys.argv)
 
-    # Initialise Input object and read config file
-    inputData = pre.Input(options.configfile)
+    if options.configfile is not None:
+        # Initialise Input object and read config file
+        inputData = pre.Input(options.configfile)
 
-    # Check the inputs and set correct mode flags
-    inputData = options.checkInputs(inputData)
-    
-    # Generate boundary condition if no exit conditions were reached when checking inputs
-    if not options.exit:
-        # Initialise some things for later
-        tangential = None
+        # Check the inputs and set correct mode flags
+        inputData = options.checkInputs(inputData)
+        
+        # Generate boundary condition if no exit conditions were reached when checking inputs
+        if not options.exit:
+            # Initialise some things for later
+            tangential = None
 
-        # Create a test meshed geometry based on user inputs if requested - node coordinates of flowfield object taken from the inlet of this mesh
-        if options.makemesh:
-            # Do import here so user won't need the dependencies if they don't need this functionality
-            import maketestdomain as domain
+            # Create a test meshed geometry based on user inputs if requested - node coordinates of flowfield object taken from the inlet of this mesh
+            if options.makemesh:
+                # Do import here so user won't need the dependencies if they don't need this functionality
+                import maketestdomain as domain
 
-            # Throw error if mesh generation requested but no filename specified
-            if inputData.meshfilename is None:
-                raise RuntimeError("Mesh generation requested but no filename specified in config")
+                # Throw error if mesh generation requested but no filename specified
+                if inputData.meshfilename is None:
+                    raise RuntimeError("Mesh generation requested but no filename specified in config")
+                else:
+                    domain.testDomain(inputData, inputData.meshfilename, options.showmesh)
+
+            # Intialise flow field object with coordinate system
+            flowfield = sg.FlowField(inputData.getNodes())
+
+            # Create flow field with vortex method
+            if not options.reconstruct:
+                # Initialise domain configuration object with vortex definitions
+                vortexDefs = sg.Vortices(inputObject=inputData)
+
+                # Calculate velocity field from effect of vortices
+                flowfield.computeDomain(vortexDefs, axialVel=inputData.axialVel)
+
+            # Reconstruct flow field from contour plots
             else:
-                domain.testDomain(inputData, inputData.meshfilename, options.showmesh)
-
-        # Intialise flow field object with coordinate system
-        flowfield = sg.FlowField(inputData.getNodes())
-
-        # Create flow field with vortex method
-        if not options.reconstruct:
-            # Initialise domain configuration object with vortex definitions
-            vortexDefs = sg.Vortices(inputObject=inputData)
-
-            # Calculate velocity field from effect of vortices
-            flowfield.computeDomain(vortexDefs, axialVel=inputData.axialVel)
-
-        # Reconstruct flow field from contour plots
-        else:
-            # Translate contour plot images to array of values
-            tangential = ct.Contour(inputData.tanImg, inputData.tanRng, flowfield.coords, cmap=inputData.tancmap)
-            radial = ct.Contour(inputData.radImg, inputData.radRng, flowfield.coords, cmap=inputData.radcmap)
-
-            # Calculate velocity field from flow angles
-            flowfield.reconstructDomain(tangential.values, radial.values, inputData.axialVel)
-
-
-        # Get RMSE between calculated swirl angle field and that estimated from contour plot image if requested
-        if options.validate:
-            # Get the swirl angles from a contour plot if haven't already done so
-            if tangential is None:
+                # Translate contour plot images to array of values
                 tangential = ct.Contour(inputData.tanImg, inputData.tanRng, flowfield.coords, cmap=inputData.tancmap)
+                radial = ct.Contour(inputData.radImg, inputData.radRng, flowfield.coords, cmap=inputData.radcmap)
 
-            print(f'RMSE compared to estimated plot values: {flowfield.getError(tangential.values)}')
+                # Calculate velocity field from flow angles
+                flowfield.reconstructDomain(tangential.values, radial.values, inputData.axialVel)
 
-        # Verify boundary conditions if requested
-        if options.checkboundaries:
-            flowfield.checkBoundaries()
 
-        # Write inlet boundary condition file
-        bc.writeInlet(InputObject=inputData, flowField=flowfield)
+            # Get RMSE between calculated swirl angle field and that estimated from contour plot image if requested
+            if options.validate:
+                # Get the swirl angles from a contour plot if haven't already done so
+                if tangential is None:
+                    tangential = ct.Contour(inputData.tanImg, inputData.tanRng, flowfield.coords, cmap=inputData.tancmap)
 
-        # Initialise plotting object
-        plots = post.Plots(flowfield)
+                print(f'RMSE compared to estimated plot values: {flowfield.getError(tangential.values)}')
 
-        # Save flow fields in pdf if requested - name the pdf the same as the boundary condition .dat file
-        if options.saveplots:
-            pdfname = options.configfile.split('.')[0]
-            plots.plotAll(pdfName=f'{pdfname}.pdf', swirlAxisRange=inputData.swirlPlotRange, swirlAxisNTicks=inputData.swirlPlotNTicks)
+            # Verify boundary conditions if requested
+            if options.checkboundaries:
+                flowfield.checkBoundaries()
 
-        # Show flow fields if requested
-        if options.showFields:
-            plots.plotAll(swirlAxisRange=inputData.swirlPlotRange, swirlAxisNTicks=inputData.swirlPlotNTicks)
+            # Write inlet boundary condition file
+            bc.writeInlet(InputObject=inputData, flowField=flowfield)
 
-        # Show inlet nodes if requested
-        if options.showinletnodes:
-            plots.showInletNodes()
+            # Initialise plotting object
+            plots = post.Plots(flowfield)
 
-    else:
-        print('Exiting...')
+            # Save flow fields in pdf if requested - name the pdf the same as the boundary condition .dat file
+            if options.saveplots:
+                pdfname = options.configfile.split('.')[0]
+                plots.plotAll(pdfName=f'{pdfname}.pdf', swirlAxisRange=inputData.swirlPlotRange, swirlAxisNTicks=inputData.swirlPlotNTicks)
+
+            # Show flow fields if requested
+            if options.showFields:
+                plots.plotAll(swirlAxisRange=inputData.swirlPlotRange, swirlAxisNTicks=inputData.swirlPlotNTicks)
+
+            # Show inlet nodes if requested
+            if options.showinletnodes:
+                plots.showInletNodes()
+
+        else:
+            print('Exiting...')
 
 
 class Options:
