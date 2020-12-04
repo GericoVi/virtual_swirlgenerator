@@ -131,6 +131,8 @@ class Options:
             print('-showmesh                Renders the mesh using GMSH GUI - beware this can be very slow with large meshes')
             print('-showinletnodes          For plotting the inlet nodes - for confirming correct extraction of nodes from mesh')
 
+            self.exit = True
+
         else:
             self.__checkargs__()
 
