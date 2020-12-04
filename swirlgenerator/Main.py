@@ -15,6 +15,7 @@ def main():
     # Get command line options
     options = Options(sys.argv)
 
+    # Only do this when config file specified - ie not just using '-help'
     if options.configfile is not None:
         # Initialise Input object and read config file
         inputData = pre.Input(options.configfile)
@@ -131,8 +132,6 @@ class Options:
             print('-makemesh                Creates a meshed empty domain with the parameters defined in the config file')
             print('-showmesh                Renders the mesh using GMSH GUI - beware this can be very slow with large meshes')
             print('-showinletnodes          For plotting the inlet nodes - for confirming correct extraction of nodes from mesh')
-
-            self.exit = True
 
         else:
             self.__checkargs__()
