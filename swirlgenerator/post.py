@@ -95,8 +95,8 @@ class Plots:
         plt.plot(self.boundary[0], self.boundary[1],'k-')
 
         # Interpolate data to a regularly spaced grid
-        u = griddata((self.xy[0],self.xy[1]), self.vel[:,0], (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='cubic')
-        v = griddata((self.xy[0],self.xy[1]), self.vel[:,1], (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='cubic')
+        u = griddata((self.xy[0],self.xy[1]), self.vel[:,0], (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='linear')
+        v = griddata((self.xy[0],self.xy[1]), self.vel[:,1], (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='linear')
 
         # Make streamlines plot
         plt.figure()
@@ -113,8 +113,8 @@ class Plots:
         Create contour plots for density and pressure field
         '''
 
-        rho = griddata((self.xy[0],self.xy[1]), self.thermos[0], (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='cubic')
-        pressure = griddata((self.xy[0],self.xy[1]), self.thermos[1], (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='cubic')
+        rho = griddata((self.xy[0],self.xy[1]), self.thermos[0], (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='linear')
+        pressure = griddata((self.xy[0],self.xy[1]), self.thermos[1], (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='linear')
 
         plt.figure()
         plt.title('Density')
@@ -135,8 +135,8 @@ class Plots:
         '''
 
         # Interpolate data to a regularly spaced grid
-        swirlAngle  = griddata((self.xy[0],self.xy[1]), self.swirlAngle, (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='cubic')
-        radialAngle = griddata((self.xy[0],self.xy[1]), self.radialAngle, (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='cubic')
+        swirlAngle  = griddata((self.xy[0],self.xy[1]), self.swirlAngle, (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='linear')
+        radialAngle = griddata((self.xy[0],self.xy[1]), self.radialAngle, (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='linear')
 
         # Make our own reasonable max and min range if not specified
         if None in axisRange:
