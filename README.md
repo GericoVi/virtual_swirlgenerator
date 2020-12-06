@@ -14,9 +14,9 @@
 
 ## Basic Usage
 ### Command Line Control
-`python swirlgenerator/Main.py <config file>` performs the basic functionality of the tool. Generates a boundary condition according to the options specified in the config file. A template config file has been included in the repository which shows all available functionality/configurations.
+`python swirlgenerator <config file>` performs the basic functionality of the tool. Generates a boundary condition according to the options specified in the config file. A template config file has been included in the repository which shows all available functionality/configurations.
  
-`python /swirlgenerator/Main.py -help` shows the command line options available for performing extra functionality. 
+`python /swirlgenerator -help` shows the command line options available for performing extra functionality. 
 
 
 ### Calling from user scripts
