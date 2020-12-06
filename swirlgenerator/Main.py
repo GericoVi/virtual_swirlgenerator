@@ -23,35 +23,40 @@ def main():
         # Check the inputs and set correct mode flags
         inputData = options.checkInputs(inputData)
         
-        # Generate boundary condition if no exit conditions were reached when checking inputs
         if not options.exit:
-            # Initialise some things for later
             tangential = None
 
             # Create a test meshed geometry based on user inputs if requested - node coordinates of flowfield object taken from the inlet of this mesh
             if options.makemesh:
+                print('Generating mesh...')
                 # Do import here so user won't need the dependencies if they don't need this functionality
                 import maketestdomain as domain
 
-                # Throw error if mesh generation requested but no filename specified
                 if inputData.meshfilename is None:
                     raise RuntimeError("Mesh generation requested but no filename specified in config")
                 else:
                     domain.testDomain(inputData, inputData.meshfilename, options.showmesh)
+                    print(f"Mesh file written to {inputData.meshfilename}")
+
 
             # Intialise flow field object with coordinate system
+            print(f'Extracting inlet nodes from {inputData.meshfilename}...')
             flowfield = sg.FlowField(inputData.getNodes())
+
 
             # Create flow field with vortex method
             if not options.reconstruct:
+                print('Calculating flow field...')
                 # Initialise domain configuration object with vortex definitions
                 vortexDefs = sg.Vortices(inputObject=inputData)
 
                 # Calculate velocity field from effect of vortices
                 flowfield.computeDomain(vortexDefs, axialVel=inputData.axialVel)
 
+
             # Reconstruct flow field from contour plots
             else:
+                print('Reconstructing flow field...')
                 # Translate contour plot images to array of values
                 tangential = ct.Contour(inputData.tanImg, inputData.tanRng, flowfield.coords, cmap=inputData.tancmap)
                 radial = ct.Contour(inputData.radImg, inputData.radRng, flowfield.coords, cmap=inputData.radcmap)
@@ -62,26 +67,33 @@ def main():
 
             # Get RMSE between calculated swirl angle field and that estimated from contour plot image if requested
             if options.validate:
-                # Get the swirl angles from a contour plot if haven't already done so
                 if tangential is None:
                     tangential = ct.Contour(inputData.tanImg, inputData.tanRng, flowfield.coords, cmap=inputData.tancmap)
 
                 print(f'RMSE compared to estimated plot values: {flowfield.getError(tangential.values)}')
 
+
             # Verify boundary conditions if requested
             if options.checkboundaries:
                 flowfield.checkBoundaries()
 
+
             # Write inlet boundary condition file
+            print('Writing boundary condition...')
             bc.writeInlet(InputObject=inputData, flowField=flowfield)
+            print(f'Inlet BC written to {inputData.filename}')
+
 
             # Initialise plotting object
+            print('Creating plots...')
             plots = post.Plots(flowfield)
 
             # Save flow fields in pdf if requested - name the pdf the same as the boundary condition .dat file
             if options.saveplots:
                 pdfname = options.configfile.split('.')[0]
-                plots.plotAll(pdfName=f'{pdfname}.pdf', swirlAxisRange=inputData.swirlPlotRange, swirlAxisNTicks=inputData.swirlPlotNTicks)
+                pdfname = f'{pdfname}.pdf'
+                plots.plotAll(pdfName=pdfname, swirlAxisRange=inputData.swirlPlotRange, swirlAxisNTicks=inputData.swirlPlotNTicks)
+                print(f'Figures saved to {pdfname}')
 
             # Show flow fields if requested
             if options.showFields:
@@ -157,7 +169,7 @@ class Options:
         # Override priority and use reconstruction method even if domain vortices have been defined
         self.reconstruct = (True if '-reconstruct' in self.arguments else False)
 
-        # Override and validate the calculated swirl angle with the estimated values translated from a contour plot
+        # Validate the calculated swirl angle with the estimated values translated from a contour plot
         self.validate = (True if '-validate' in self.arguments else False)
 
         # Check validity of boundary conditions
@@ -235,6 +247,10 @@ class Options:
                     else:
                         print('Invalid choice')
                         continue
+
+            # If only contour translation section is present, then assume we want to do reconstruction
+            elif not inputdata.vortDefs_flag:
+                self.reconstruct = True
 
             # See if colourmap names have been defined and turn them into actual RGB arrays
             if ((self.reconstruct or self.validate) and (inputdata.tancmap is not None or inputdata.radcmap is not None)):

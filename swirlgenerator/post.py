@@ -60,9 +60,6 @@ class Plots:
         - swirlAxisNTicks - specify the number of ticks to show on the colorbar for the swirl angle contour plot
         '''
 
-        # Progress print - since the post processing can take a long time, because of grid interpolation
-        print('Creating plots...')
-
         self.plotVelocity()
 
         #self.plotThermos()

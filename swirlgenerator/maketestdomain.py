@@ -23,7 +23,6 @@ def testDomain(InputData: pre.Input, meshfilename, showmesh=False, verbose=False
     domains = {'circle': simpleCylinder, 'rect': simpleBox}
 
     # Initialise gmsh api
-    print('Generating mesh...')
     gmsh.initialize()
 
     # Set verbosity level
@@ -46,7 +45,6 @@ def testDomain(InputData: pre.Input, meshfilename, showmesh=False, verbose=False
 
     # Write mesh to file
     gmsh.write(meshfilename)
-    print(f"Mesh file written to {meshfilename}")
 
     # Visualise model in gui
     if showmesh:
