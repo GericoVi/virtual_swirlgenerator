@@ -84,24 +84,25 @@ def main():
             print(f'Inlet BC written to {inputData.filename}')
 
 
-            # Initialise plotting object
-            print('Creating plots...')
-            plots = post.Plots(flowfield)
+            if options.plot:
+                # Initialise plotting object
+                print('Creating plots...')
+                plots = post.Plots(flowfield)
 
-            # Save flow fields in pdf if requested - name the pdf the same as the boundary condition .dat file
-            if options.saveplots:
-                pdfname = options.configfile.split('.')[0]
-                pdfname = f'{pdfname}.pdf'
-                plots.plotAll(pdfName=pdfname, swirlAxisRange=inputData.swirlPlotRange, swirlAxisNTicks=inputData.swirlPlotNTicks)
-                print(f'Figures saved to {pdfname}')
+                # Save flow fields in pdf if requested - name the pdf the same as the boundary condition .dat file
+                if options.saveplots:
+                    pdfname = options.configfile.split('.')[0]
+                    pdfname = f'{pdfname}.pdf'
+                    plots.plotAll(pdfName=pdfname, swirlAxisRange=inputData.swirlPlotRange, swirlAxisNTicks=inputData.swirlPlotNTicks)
+                    print(f'Figures saved to {pdfname}')
 
-            # Show flow fields if requested
-            if options.showFields:
-                plots.plotAll(swirlAxisRange=inputData.swirlPlotRange, swirlAxisNTicks=inputData.swirlPlotNTicks)
+                # Show flow fields if requested
+                if options.showFields:
+                    plots.plotAll(swirlAxisRange=inputData.swirlPlotRange, swirlAxisNTicks=inputData.swirlPlotNTicks)
 
-            # Show inlet nodes if requested
-            if options.showinletnodes:
-                plots.showInletNodes()
+                # Show inlet nodes if requested
+                if options.showinletnodes:
+                    plots.showInletNodes()
 
         else:
             print('Exiting...')
@@ -129,8 +130,9 @@ class Options:
         self.reconstruct = False            # Are we reconstructing the flow field from contour plots or creating from discrete vortices
         self.validate = False               # Are we getting the error between the created flow field and a swirl angle contour plot
 
-        # For exiting
+        # Misc flags
         self.exit = False
+        self.plot = False
 
         # For getting help with the command line arguements
         if ('-help' in self.arguments[1]):
@@ -189,6 +191,9 @@ class Options:
 
         # Show inlet nodes
         self.showinletnodes = (True if '-showinletnodes' in self.arguments else False)
+
+        if self.showFields or self.saveplots or self.showinletnodes:
+            self.plot = True
 
 
     def checkInputs(self, inputdata: pre.Input):
