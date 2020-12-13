@@ -9,6 +9,7 @@ from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import numpy as np
 from scipy.interpolate import griddata
+from scipy.integrate import trapz
 
 class Plots:
     '''
@@ -225,3 +226,135 @@ class Plots:
         maxVal = np.ceil(np.max(values)  / rounding) * rounding
 
         return (minVal,maxVal)
+
+
+class SwirlDescriptors:
+    '''
+    For calculating the swirl distortion descriptors developed in "A Methodology for Assessing Inlet Swirl Distortion"
+    - flowfield - FlowField object which contains the swirl angle data and the coordinates of the nodes which they are defined at.
+    - numRings - number of equal area radial rings to defined the descriptors for
+    - numCircPoints - number of equally spaced circumferential points on each ring to sample the swirl angle
+    '''
+
+    def __init__(self, flowfield: sg.FlowField, numRings=5, numCircPoints=72):
+        # Attribute initialisations
+        self.ring_radii = None              # Radial positions of the equal area rings
+        self.circAngles = None              # Circumferential position of the equally spaced sample points
+        self.swirl = None                   # Swirl angles sampled at the discretisation points
+        # Descriptors as defined in literature
+        self.circExtent = [None] * numRings         # Circumferential extente
+        self.sectSwirl = [None] * numRings          # Sector swirl
+        self.SI_list = np.zeros(numRings)           # Swirl intensity for each ring
+        self.SD_list = np.zeros(numRings)           # Swirl directivity for each ring
+        self.SP_list = np.zeros(numRings)           # Swirl pairs for each ring
+        self.SI_stats = np.zeros(3)                 # [Mean, standard deviation, max] of the swirl intensity
+        self.SD_stats = np.zeros(3)                 # [Mean, standard deviation, max] of the swirl directivity
+        self.SP_stats = np.zeros(3)                 # [Mean, standard deviation, max] of the swirl pairs parameter
+
+        # Get radius of the plane
+        R = max(flowfield.coords_polar.real)
+
+        # Initialise array to store radial position of the equal-area rings - plus the actual radius of the plane
+        self.ring_radii = np.zeros([numRings+1])
+        self.ring_radii[numRings] = R
+
+        # Get radius of equal area rings
+        for i in range(numRings-1,-1,-1):
+            self.ring_radii[i] = np.sqrt(((i+1)/(i+2))*self.ring_radii[i+1]**2)
+
+        # Now we can remove the last element - we don't need statistics at the wall
+        self.ring_radii = self.ring_radii[0:-1]
+
+        # Create circumferential points
+        self.circAngles = np.linspace(-180,180,numCircPoints,endpoint=False)
+
+        # Create the polar coordinates of the discretisation points
+        Radii, Theta = np.meshgrid(self.ring_radii, self.circAngles, indexing='ij')
+        Radii = Radii.flatten()
+        Theta = Theta.flatten()
+
+        # Get cartesian coordinates - for interpolating
+        Theta_rad = np.deg2rad(Theta)
+        cart_points = np.column_stack([Radii * np.cos(Theta_rad), Radii * np.sin(Theta_rad)])
+
+        # Extract the swirl and node location data from the flowfield object
+        swirl_orig = flowfield.swirlAngle
+        nodes_orig = np.column_stack([flowfield.coords.real, flowfield.coords.imag])
+
+        # Interpolate onto desired discretisation
+        self.swirl = griddata((nodes_orig[:,0],nodes_orig[:,1]), swirl_orig, (cart_points[:,0], cart_points[:,1]), method='linear')
+
+        # Reshape the swirl samples so that it is a list of lists of samples at each ring
+        self.swirl = self.swirl.reshape([-1,72])
+
+
+    def getSwirlExtentPairs(self):
+        '''
+        Calculates the 'swirl pairs' (circumferential extent and sector swirl) as defined in the literature
+        - Sets the self.circExtent and self.sectSwirl attributes, as list of ndarrays
+        '''
+
+        for i in range(len(self.ring_radii)):
+            # Get the zero crossings - https://stackoverflow.com/a/46911822/2946404
+            y = self.swirl[i,:]
+            x = self.circAngles
+            s = np.abs(np.diff(np.sign(y))).astype(bool)
+            zero_crossings = x[:-1][s] + np.diff(x)[s]/(np.abs(y[1:][s]/y[:-1][s])+1)
+
+            # Append to the ends
+            zero_crossings = np.concatenate([[-180],zero_crossings,[180]])
+            
+            # Get circumferential extents
+            self.circExtent[i] = np.diff(zero_crossings)
+
+            # Get correpsonding sector swirls - nested for not ideal but shouldn't have large performance impact, sample size is smalle
+            self.sectSwirl[i] = []
+            for j in range(len(self.circExtent[i])):
+                # Get indices of samples withing this 'sector'
+                sectorIdxs = np.logical_and(x >= zero_crossings[j], x <= zero_crossings[j+1])
+                self.sectSwirl[i].append(trapz(y[sectorIdxs],x[sectorIdxs]) / self.circExtent[i][j])
+            
+            self.sectSwirl[i] = np.array(self.sectSwirl[i])
+
+
+    def getSwirlDescriptors(self):
+        '''
+        Calculates the swirl descriptors as defined in the literature and their associated statistics
+        - Sets the atttributes: self.SI_list, self.SD_list, self.SP_list, self.SI_stats, self.SD_stats, self.SP_stats
+        '''
+
+        # Get swirl descriptors for each ring
+        for i in range(len(self.ring_radii)):
+            absoluteSum = np.sum(np.abs(self.sectSwirl[i])*self.circExtent[i])
+            directionalSum = np.sum(self.sectSwirl[i]*self.circExtent[i])
+
+            self.SI_list[i] = absoluteSum / 360
+            self.SD_list[i] = directionalSum / absoluteSum
+            self.SP_list[i] = absoluteSum / (2 * np.max(np.abs(self.sectSwirl[i])*self.circExtent))
+
+        # Get swirl descriptor statistics across all rings
+        self.SI_stats[0] = np.mean(self.SI_list)
+        self.SI_stats[1] = np.std(self.SI_list)
+        self.SI_stats[2] = np.max(self.SI_list)
+        self.SD_stats[0] = np.mean(self.SD_list)
+        self.SD_stats[1] = np.std(self.SD_list)
+        self.SD_stats[2] = np.max(self.SD_list)
+        self.SP_stats[0] = np.mean(self.SP_list)
+        self.SP_stats[1] = np.std(self.SP_list)
+        self.SP_stats[2] = np.max(self.SP_list)
+
+    def getStatistics(self):
+        '''
+        Wrapper function to output the swirl statistics as a 2D array
+        - Output: (Mean, standard deviation, max) columns; (SI, SD, SP) rows
+        '''
+
+        # Call calculation functions
+        self.getSwirlExtentPairs()
+        self.getSwirlDescriptors()
+
+        # Form output
+        out = np.array([list(self.SI_stats), list(self.SD_stats), list(self.SP_stats)])
+
+        return out
+        
