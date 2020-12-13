@@ -58,19 +58,20 @@ def main():
             else:
                 print('Reconstructing flow field...')
                 # Translate contour plot images to array of values
-                tangential = ct.Contour(inputData.tanImg, inputData.tanRng, flowfield.coords, cmap=inputData.tancmap)
-                radial = ct.Contour(inputData.radImg, inputData.radRng, flowfield.coords, cmap=inputData.radcmap)
+                tangential = ct.Contour(inputData.tanImg, inputData.tanRng, cmap=inputData.tancmap)
+                radial = ct.Contour(inputData.radImg, inputData.radRng, cmap=inputData.radcmap)
 
-                # Calculate velocity field from flow angles
-                flowfield.reconstructDomain(tangential.values, radial.values, inputData.axialVel)
+                # Calculate velocity field from flow angles mapped to flowfield nodes
+                flowfield.reconstructDomain(tangential.getValuesAtNodes(flowfield.coords), radial.getValuesAtNodes(flowfield.coords), inputData.axialVel)
 
 
             # Get RMSE between calculated swirl angle field and that estimated from contour plot image if requested
             if options.validate:
                 if tangential is None:
-                    tangential = ct.Contour(inputData.tanImg, inputData.tanRng, flowfield.coords, cmap=inputData.tancmap)
+                    tangential = ct.Contour(inputData.tanImg, inputData.tanRng, cmap=inputData.tancmap)
 
-                print(f'RMSE compared to estimated plot values: {flowfield.getError(tangential.values)}')
+                values = tangential.getValuesAtNodes(flowfield.coords)
+                print(f'RMSE compared to estimated plot values: {flowfield.getError(values)}')
 
 
             # Verify boundary conditions if requested

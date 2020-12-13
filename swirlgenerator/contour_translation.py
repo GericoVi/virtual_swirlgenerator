@@ -8,17 +8,19 @@
 import numpy as np
 import cv2
 import os
+from scipy.interpolate import griddata
 
 class Contour:
     '''
     Class for processing images conatining the flow angles as contour plots
-    - imgFile1 - PNG image file containing the contour plot to translate
+    - imgFile - PNG image file containing the contour plot to translate
     - range - [min, max] values which correspond to the colorbar range of the contour plot
-    - nodes - complex coordinates of nodes on the inlet plane (extracted from mesh)
     - cmap - a colourmap can be given instead of extracting it from the image, an array list of RGB values of shape (n,3)
+    - sampleDist - parameters for controlling the resolution at which to sample the contour plot, [number of radial rings, angular resolution]
+    - showSegmentation - for debugging - if true, shows the bounding circle/box found overlayed onto a greyscale version of the input image
     '''
     
-    def __init__(self,imgFile,range,nodes,cmap=None,showSegmentation=False):
+    def __init__(self, imgFile, range, cmap=None, sampleDist=[5,5], showSegmentation=False):
         # Check file existance
         if not os.path.exists(imgFile):
             raise FileNotFoundError(f'{imgFile} not found')
@@ -26,7 +28,6 @@ class Contour:
         # Extract data into attributes
         self.imgArray = cv2.imread(imgFile)
         self.range = range
-        self.nodes = nodes
         self.cmap = cmap
 
         # Image geometry
@@ -41,11 +42,8 @@ class Contour:
         # Flag for showing 
         self.showSegmentation = showSegmentation
 
-        # Get the actual radius of the plot in terms of the inlet units - using the nodes, assuming that the boundary is made up of nodes
-        self.duct_radius = max(abs(self.nodes))
-
         '''
-        Do workflow for getting contour plot values at nodes during initialisation
+        Do contour translation workflow on initialisation
         '''
         # If a colourmap has been provided already, we don't need to look for the colour bar in the image
         getColourbar = (True if cmap is None else False)
@@ -58,10 +56,50 @@ class Contour:
 
         if cmap is None:
             # Extract the colourmap associated to this plot from the image if needed
-            self.__getCmap__(self.imgArray, self.boundaries[1])
+            self.__getCmap__()
 
-        # Get actual values at nodes
-        self.values = self.getValuesAtNodes()
+        # Get points for sampling the contour plot
+        self.samples = Contour.samplePoints(sampleDist[0],sampleDist[1],self.boundaries[0][1])
+
+        # Get values at sample points
+        self.__getValues__()
+
+
+    @staticmethod
+    def samplePoints(numRings, angleRes, plotRadius):
+        '''
+        Generates a distribution of sample points to query the contour plot
+        - numRings - number of radial positions to sample
+        - angleRes - angular resolution we want to sample at, number of circumferential points will be calculated from this
+        - plotRadius - radius of contour plot within the image, in pixels
+        - Outputs list of sample point coordinates [complex cartesian]
+        - Static method since this could be useful outside the class
+        '''
+
+        # Get number of circumferential points from input angular resolution
+        numAngles = int(np.ceil(360/angleRes))
+
+        # Make polar axis list
+        radii = np.linspace(0,plotRadius,numRings+1,endpoint=False)        # We don't need sample points at the boundary - since contour plots normally have a black border
+        angles = np.linspace(-180,180,numAngles,endpoint=False)    # We don't need another point at 360, already have on there (0 degrees)
+
+        # Convert to radians
+        angles = np.deg2rad(angles)
+
+        # Remove the 0 radial position - added again later, so we don't have multiple points at the centre
+        radii = radii[1:]
+
+        # Make grid of coords
+        R, Theta = np.meshgrid(radii,angles,indexing='ij')
+
+        # Flatten into list and add the point at the centre
+        coords_polar = np.column_stack([R.flatten(), Theta.flatten()])
+        coords_polar = np.concatenate([[[0,0]], coords_polar])
+
+        # Transform to complex cartesian coords - easier Euclidean distance calculations later
+        coords = (coords_polar[:,0] * np.cos(coords_polar[:,1])) + 1j * (coords_polar[:,0] * np.sin(coords_polar[:,1]))
+
+        return coords
 
 
     def segmentImage(self, getColourbar=True):
@@ -194,7 +232,7 @@ class Contour:
 
             # Get list of RGB values for colourmap - by getting the pixels in the colourbar, truncate start an end to leave out the black boundary
             # Depending on the accuracy of the opencv bounding box, this colourmap could be only an approximation of the actual range
-            colourbar = self.imgArray[colourbar_start[1]+2:-1:colourbar_end[1]-2,colourbar_start[0], :]
+            colourbar = self.imgArray[colourbar_start[1]+2:colourbar_end[1]-2:-1,colourbar_start[0], :]
 
         # Normalise RGB values
         cmap = colourbar / 255
@@ -211,9 +249,6 @@ class Contour:
 
         boundingcircle = self.boundaries[0]
 
-        # Get pixel to inlet unit mapping
-        pixToUnit = self.duct_radius/boundingcircle[1]
-
         # Make coordinate grid for the image in terms of pixels - indexing in [row,column] format to match how cv2 stores images
         Y,X = np.meshgrid(np.arange(0,self.imgGeom[0]), np.arange(self.imgGeom[1]), indexing='ij')
 
@@ -222,15 +257,15 @@ class Contour:
         y = Y.reshape(-1,1)
         pixels = self.imgArray.reshape(-1,3)
 
-        # Transform coordinates to have origin coincident to plot centre and map to inlet dimension units
-        x = (x-boundingcircle[0][0]) * pixToUnit
-        y = (y-boundingcircle[0][1]) * pixToUnit
+        # Transform coordinates to have origin coincident to plot centre
+        x = x-boundingcircle[0][0]
+        y = y-boundingcircle[0][1]
 
-        # Form into complex coordinates
+        # Form into complex coords - easier euclidean distance calculations
         coords = x + 1j * y
-
+        
         # Get indices of pixels in plot
-        plotIdxs = np.abs(coords) <= self.duct_radius
+        plotIdxs = np.abs(coords) <= boundingcircle[1]
         plotIdxs = plotIdxs[:,0]
 
         # Get only the pixels in the plot
@@ -249,35 +284,68 @@ class Contour:
         self.plotPixels = ((plotCoords),(plotPixels))
         
 
-    def getValuesAtNodes(self):
+    def getValuesAtNodes(self, nodes):
         '''
-        Gets the numerical values associated with the contour plot at the node points
+        Interpolates the values at the extracted sample points onto a separate input discretisation
+        - nodes - the new discretisation points to interpolate the values to, list of 2D cartesian coordinates or complex coordinates
+        - Returns the a list of values corresponding
+        '''
+
+        # Make sure that nodes are in complex coordinate form
+        if len(nodes.shape) == 2:
+            nodes = nodes[:,0] * 1j * nodes[:,1]
+        elif len(nodes.shape) != 1:
+            raise RuntimeError(f'Invalid shape {nodes.shape} for input nodes list. Should be either list of 2D cartesian coordinates or complex coordinates')
+
+
+        # Get pixel to inlet unit mapping - assuming that the nodes capture the boundary
+        ductRadius = max(abs(nodes))
+        pixToUnit = ductRadius/self.boundaries[0][1]
+
+        # Convert sample point coordinates from pixel units to inlet units, also from complex coords to 2D array
+        samples = np.column_stack([self.samples.real*pixToUnit, self.samples.imag*pixToUnit])
+
+        # Interpolate onto desired discretisation
+        values = griddata((samples[:,0], samples[:,1]), self.values, (nodes.real, nodes.imag), method='linear')
+
+        # Since we have not sampled at the edges, the boundary nodes will have nan values.
+        # Need to use griddata again for boundary nodes using the 'nearest' interpolation method
+        boundaryIdxs = np.isnan(values)
+        values[boundaryIdxs] = griddata((samples[:,0], samples[:,1]), self.values, (nodes[boundaryIdxs].real, nodes[boundaryIdxs].imag), method='nearest')
+
+        return values
+
+
+    def __getValues__(self):
+        '''
+        Gets the numerical values associated with the contour plot at the sample points
+        - Sets the self.values attribute
         '''
 
         # Extract the arrays from the input tuple
-        pixelCoords = self.plotPixels[0]
+        pixelCoords = self.plotPixels[0][:,0]
         pixelBGRs = self.plotPixels[1]
 
         # Transform colour map to BGR, to match the pixel values read by opencv
         cmap = np.column_stack([self.cmap[:,2],self.cmap[:,1],self.cmap[:,0]])
 
         # For storing the corresponding level of the pixels' colour at that node within the colourmap
-        levels = np.array([None]*len(self.nodes))
+        levels = np.array([None]*len(self.samples))
 
-        # Loop through the nodes
-        for i,node in enumerate(self.nodes):
-            # Get index of closest pixel to this node
-            closest_idx = np.argmin(np.abs(pixelCoords - node))
+        # Loop through the sample points
+        for i,sample in enumerate(self.samples):
+            # Get index of closest pixel to this sample point
+            closest_idx = np.argmin(np.abs(pixelCoords - sample))
 
             # Get BGR for this pixel
             BGR = pixelBGRs[closest_idx]
-            
+            #print(BGR)
             # Get index of closest closer to this value from the colour map levels, by getting the Euclidean distance in a 3D space where B,G,R are the dimensions
             level_idx = np.argmin(np.linalg.norm((cmap - BGR), axis=1))
 
             # Normalise
             levels[i] = level_idx/cmap.shape[0]
-
+            
         # Map these levels to the actual value range and output
-        return np.array((levels*(self.range[1]-self.range[0]) + self.range[0]), dtype=float)
+        self.values = np.array((levels*(self.range[1]-self.range[0]) + self.range[0]), dtype=float)
 
