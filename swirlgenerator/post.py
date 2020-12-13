@@ -344,6 +344,7 @@ class SwirlDescriptors:
         self.SP_stats[1] = np.std(self.SP_list)
         self.SP_stats[2] = np.max(self.SP_list)
 
+
     def getStatistics(self):
         '''
         Wrapper function to output the swirl statistics as a 2D array
