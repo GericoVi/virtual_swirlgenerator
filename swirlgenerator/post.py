@@ -69,7 +69,7 @@ class Plots:
 
         # If saving, don't show plots
         if (pdfName != None):
-            Plots.__saveFigsToPdf__(pdfName)
+            Plots.saveFigsToPdf(pdfName)
         else:
             plt.show()
 
@@ -195,10 +195,9 @@ class Plots:
 
 
     @staticmethod
-    def __saveFigsToPdf__(outputFile):
+    def saveFigsToPdf(outputFile):
         '''
         Save all current figures into a multi-page pdf
-        - Internal function, should not be used outside plots.py
         -outputFile - name of file to save to, including extension
         '''
 
