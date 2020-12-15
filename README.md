@@ -4,7 +4,7 @@
  Inspired by **'A New Method for Generating Swirl Inlet Distortion for Jet Engine Research'** paper by K. Hoopes (2013). This is an attempt to develop the same capability for aiding work in the numerical (CFD) domain.
 
 ## Dependencies
-- numpy
+- numpy (1.19.3)
 - matplotlib
 - scipy
 - alphashape
