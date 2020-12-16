@@ -81,9 +81,6 @@ class Input:
             # Get section
             metadata = config['METADATA']
 
-            # Supported formats 
-            formats = ['su2']
-
             try:
                 # Get name for output boundary condition file
                 self.filename = metadata.get('filename')
