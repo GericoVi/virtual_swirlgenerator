@@ -359,3 +359,25 @@ class SwirlDescriptors:
 
         return out
         
+
+    @staticmethod
+    def getError(field1, field2):
+        '''
+        Method for calculating the Root Mean Square error between field 1 and field 2
+        - field1, field2 - array list of vectors or scalars to be compared, must be the same size
+        - if list of vectors, values will be flattened and rmse calculated across all values
+        '''
+
+        # Make sure these are ndarrays
+        field1 = (field1 if isinstance(field1,np.ndarray) else np.array(field1))
+        field2 = (field2 if isinstance(field1,np.ndarray) else np.array(field2))
+
+        field1 = field1.flatten()
+        field2 = field2.flatten()
+
+        # Check is same number of elements
+        if not np.size(field1) == np.size(field2):
+            raise RuntimeError('Two input arrays must have the same number of elements')
+
+        return np.sqrt(np.sum((field1-field2)**2)/np.size(field1))
+
