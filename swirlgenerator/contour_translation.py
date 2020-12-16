@@ -20,7 +20,7 @@ class Contour:
     - showSegmentation - for debugging - if true, shows the bounding circle/box found overlayed onto a greyscale version of the input image
     '''
     
-    def __init__(self, imgFile, range, cmap=None, sampleDist=[5,5], showSegmentation=False):
+    def __init__(self, imgFile, range, cmap=None, sampleDist=[10,15], showSegmentation=False):
         # Check file existance
         if not os.path.exists(imgFile):
             raise FileNotFoundError(f'{imgFile} not found')
