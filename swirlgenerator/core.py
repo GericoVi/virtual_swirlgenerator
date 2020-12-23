@@ -48,7 +48,7 @@ class Vortices:
         # Or take attributes from individual inputs
         else:
             self.numVortices    = len(strengths)
-            self.model          = model         # Vortex type - which mathematical model to use for all the vortices in the domain
+            self.model          = model                                                                           # Vortex type - which mathematical model to use for all the vortices in the domain
             self.axialVel       = axialVel                                                                        # Uniform axial velcoity - only needed for forced swirl type
             # Make sure these are all numpy arrays not just lists
             self.centres        = (centres      if isinstance(centres,np.ndarray)   else np.array(centres))       # Vortex centre
@@ -468,6 +468,7 @@ class FlowField:
     def save(self, outputFile):
         '''
         Wrapper function for saving the flow field in a format which can be loaded by core.load() later
+        - outputFile - without file extension
         - so calling script does not need to import numpy just for this
         '''
 
