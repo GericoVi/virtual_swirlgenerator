@@ -78,6 +78,10 @@ def main():
             if options.checkboundaries:
                 flowfield.checkBoundaries()
 
+            # Save raw numpy arrays if requested
+            if options.savenumpy:
+                name = options.configfile.split('.')[0]
+                flowfield.save(name)
 
             # Write inlet boundary condition file
             print('Writing boundary condition...')
@@ -126,6 +130,7 @@ class Options:
         self.makemesh           = False
         self.showmesh           = False
         self.showinletnodes     = False
+        self.savenumpy          = False
 
         # Options based on the inputs in config file
         self.reconstruct = False            # Are we reconstructing the flow field from contour plots or creating from discrete vortices
@@ -147,6 +152,7 @@ class Options:
             print('-makemesh                Creates a meshed empty domain with the parameters defined in the config file')
             print('-showmesh                Renders the mesh using GMSH GUI - beware this can be very slow with large meshes')
             print('-showinletnodes          For plotting the inlet nodes - for confirming correct extraction of nodes from mesh')
+            print('-savenumpy               For saving the created flowfield as its component numpy arrays')
 
         else:
             self.__checkargs__()
@@ -195,6 +201,9 @@ class Options:
 
         if self.showFields or self.saveplots or self.showinletnodes:
             self.plot = True
+
+        # Save raw numpy arrays
+        self.savenumpy = (True if '-savenumpy' in self.arguments else False)
 
 
     def checkInputs(self, inputdata: pre.Input):
