@@ -42,6 +42,11 @@ class Contour:
         # Flag for showing 
         self.showSegmentation = showSegmentation
 
+        # Set defaults for sampling distribution again - in case it gets passed None values
+        self.sampleDist = sampleDist
+        self.sampleDist[0] = (10 if self.sampleDist[0] is None else self.sampleDist[0])
+        self.sampleDist[1] = (15 if self.sampleDist[1] is None else self.sampleDist[1])
+
         '''
         Do contour translation workflow on initialisation
         '''
@@ -59,7 +64,7 @@ class Contour:
             self.__getCmap__()
 
         # Get points for sampling the contour plot
-        self.samples = Contour.samplePoints(sampleDist[0],sampleDist[1],self.boundaries[0][1])
+        self.samples = Contour.samplePoints(self.sampleDist[0],self.sampleDist[1],self.boundaries[0][1])
 
         # Get values at sample points
         self.__getValues__()

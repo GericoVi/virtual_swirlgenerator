@@ -58,8 +58,8 @@ def main():
             else:
                 print('Reconstructing flow field...')
                 # Translate contour plot images to array of values
-                tangential = ct.Contour(inputData.tanImg, inputData.tanRng, cmap=inputData.tancmap)
-                radial = ct.Contour(inputData.radImg, inputData.radRng, cmap=inputData.radcmap)
+                tangential = ct.Contour(inputData.tanImg, inputData.tanRng, cmap=inputData.tancmap, sampleDist=[inputData.numRings, inputData.angRes])
+                radial = ct.Contour(inputData.radImg, inputData.radRng, cmap=inputData.radcmap, sampleDist=[inputData.numRings, inputData.angRes])
 
                 # Calculate velocity field from flow angles mapped to flowfield nodes
                 flowfield.reconstructDomain(tangential.getValuesAtNodes(flowfield.coords), radial.getValuesAtNodes(flowfield.coords), inputData.axialVel)
@@ -68,7 +68,7 @@ def main():
             # Get RMSE between calculated swirl angle field and that estimated from contour plot image if requested
             if options.validate:
                 if tangential is None:
-                    tangential = ct.Contour(inputData.tanImg, inputData.tanRng, cmap=inputData.tancmap)
+                    tangential = ct.Contour(inputData.tanImg, inputData.tanRng, cmap=inputData.tancmap, sampleDist=[inputData.numRings, inputData.angRes])
 
                 values = tangential.getValuesAtNodes(flowfield.coords)
                 print(f'RMSE compared to estimated plot values: {flowfield.getError(values)}')
@@ -285,11 +285,6 @@ class Options:
                         inputdata.radcmap = cmap(range(cmap.N))[:,0:3]
                     except ValueError:
                         raise ValueError(f'Invalid colourmap name {inputdata.radcmap} in {self.configfile}. See https://matplotlib.org/gallery/color/colormap_reference.html?highlight=colormap%20reference for list of available')
-
-
-                # Get sampling distribution parameters if they are there
-                inputdata.numRings = 10 if inputdata.numRings is None else inputdata.numRings
-                inputdata.angRes = 15 if inputdata.angRes is None else inputdata.angRes
 
         if inputdata.mesh_flag:
             if inputdata.shape is None:
