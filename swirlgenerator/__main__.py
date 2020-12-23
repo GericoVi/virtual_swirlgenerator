@@ -277,6 +277,11 @@ class Options:
                     except ValueError:
                         raise ValueError(f'Invalid colourmap name {inputdata.radcmap} in {self.configfile}. See https://matplotlib.org/gallery/color/colormap_reference.html?highlight=colormap%20reference for list of available')
 
+
+                # Get sampling distribution parameters if they are there
+                inputdata.numRings = 10 if inputdata.numRings is None else inputdata.numRings
+                inputdata.angRes = 15 if inputdata.angRes is None else inputdata.angRes
+
         if inputdata.mesh_flag:
             if inputdata.shape is None:
                 raise RuntimeError(f'\nShape of inlet face must be specified in {self.configfile}')

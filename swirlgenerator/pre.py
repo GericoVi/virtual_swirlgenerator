@@ -42,6 +42,8 @@ class Input:
         self.radImg = None
         self.radRng = []
         self.tancmap = None
+        self.numRings = None
+        self.angRes = None
 
         # Extra parameters
         self.axialVel = None
@@ -146,6 +148,13 @@ class Input:
                 self.radImg = contours.get('rad_img')
                 self.radRng = list(float(numString) for numString in contours.get('rad_range')[1:-1].split(','))
                 self.radcmap = contours.get('rad_cmap')
+            except:
+                pass
+
+            # Get information on the sampling distribution if it is there
+            try:
+                self.numRings = int(contours.get('num_rings'))
+                self.angRes = float(contours.get('ang_res'))
             except:
                 pass
 
