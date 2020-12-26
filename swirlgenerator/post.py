@@ -33,24 +33,8 @@ class Plots:
         self.radialAngle    = flowfield.radialAngle
         self.boundary       = np.vstack([flowfield.boundaryCurve.real, flowfield.boundaryCurve.imag])
 
-        # Get plot density from input or try to mimic original data density
-        for i,axis in enumerate(plotDensity):
-            if axis is None:
-                # Get all points of this dimension
-                dim_discrete = np.array(self.xy[i])
-
-                # Get unique 'ticks' of this axis with some tolerance for numeric error
-                ticks = np.unique(dim_discrete.round(decimals=6))
-
-                plotDensity[i] = ticks.size
-
-        self.plotDensity = plotDensity
-
-        # Create new regularly spaced axis
-        self.dim_max = np.max(self.xy,axis=1)
-        self.dim_min = np.min(self.xy,axis=1)
-        self.xy_i = np.vstack([np.linspace(self.dim_min[0], self.dim_max[0], num=self.plotDensity[0]), 
-                                np.linspace(self.dim_min[1], self.dim_max[1], num=self.plotDensity[1])])
+        # Get regularly spaced axis for plotting
+        self.xy_i = Plots.makeRegularAxis(self.xy, plotDensity)
 
 
     def plotAll(self, pdfName=None, swirlAxisRange=[None,None], swirlAxisNTicks=None):
@@ -81,8 +65,10 @@ class Plots:
         '''
 
         # Sub sample the velocity profile so that the quiver plot is readable
-        reduced_x = np.linspace(self.dim_min[0],self.dim_max[0],arrowDensity)
-        reduced_y = np.linspace(self.dim_min[1],self.dim_max[1],arrowDensity)
+        dim_max = np.max(self.xy,axis=1)
+        dim_min = np.min(self.xy,axis=1)
+        reduced_x = np.linspace(dim_min[0],dim_max[0],arrowDensity)
+        reduced_y = np.linspace(dim_min[1],dim_max[1],arrowDensity)
         u = griddata((self.xy[0],self.xy[1]), self.vel[:,0], (reduced_x[None,:],reduced_y[:,None]), method='linear')
         v = griddata((self.xy[0],self.xy[1]), self.vel[:,1], (reduced_x[None,:],reduced_y[:,None]), method='linear')
 
@@ -135,50 +121,20 @@ class Plots:
         - numTicks - specify the number of ticks to show on the colorbar
         '''
 
-        # Interpolate data to a regularly spaced grid
-        swirlAngle  = griddata((self.xy[0],self.xy[1]), self.swirlAngle, (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='linear')
-        radialAngle = griddata((self.xy[0],self.xy[1]), self.radialAngle, (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='linear')
-
-        # Make our own reasonable max and min range if not specified
-        if None in axisRange:
-            (minVal, maxVal) = self.__getContourRange__(swirlAngle)
-        else:
-            minVal = axisRange[0]
-            maxVal = axisRange[1]
-
         numTicks = (numTicks if numTicks is not None else 11)
-        # Make ticks for colormap
-        ticks = np.linspace(minVal,maxVal,numTicks)
-        # Make colormap levels
-        levels = np.linspace(minVal,maxVal,101)
-
-        # Make contour plot for tangential flow angle
-        plt.figure()
-        plt.gca().set_aspect('equal', adjustable='box')
-        plt.title('Tangential flow (Swirl) angle')
-        # For some reason contourf doesn't like when the coordinate grids have nans in them, so using zero instead of nan versions of array
-        plt.contourf(self.xy_i[0], self.xy_i[1],swirlAngle,levels=levels,cmap='jet',vmin=minVal,vmax=maxVal)
-        plt.colorbar(ticks=ticks)
-        plt.axis('off')
-        # Draw boundary
-        plt.plot(self.boundary[0], self.boundary[1],'k-')
 
         if len(axisRange) > 2:
-            minVal = axisRange[2]
-            maxVal = axisRange[3]
-            ticks = np.linspace(minVal,maxVal,numTicks)
-            levels = np.linspace(minVal,maxVal,101)
+            axisRange1 = axisRange[0:2]
+            axisRange2 = axisRange[2:]
+        else:
+            axisRange1 = axisRange
+            axisRange2 = [None,None]
 
-        # Make contour plot for radial flow angle
-        plt.figure()
-        plt.gca().set_aspect('equal', adjustable='box')
-        plt.title('Radial flow angle')
-        # For some reason contourf doesn't like when the coordinate grids have nans in them, so using zero instead of nan versions of array
-        plt.contourf(self.xy_i[0], self.xy_i[1],radialAngle,levels=levels,cmap='jet',vmin=minVal,vmax=maxVal)
-        plt.colorbar(ticks=ticks)
-        plt.axis('off')
-        # Draw boundary
-        plt.plot(self.boundary[0], self.boundary[1],'k-') 
+        # Make tangential flow angle contour plot
+        Plots.makeContourPlot(self.swirlAngle, self.xy, numTicks, title='Tangential flow (Swirl) angle', regularPoints=self.xy_i, axisRange=axisRange1, boundaryPoints=self.boundary)
+
+        # Make radial flow angle contour plot
+        Plots.makeContourPlot(self.radialAngle, self.xy, numTicks, title='Radial flow angle', regularPoints=self.xy_i, axisRange=axisRange2, boundaryPoints=self.boundary)
 
 
     def showInletNodes(self):
@@ -192,6 +148,74 @@ class Plots:
         plt.plot(self.boundary[0], self.boundary[1],'k-')
         plt.scatter(self.xy[0],self.xy[1],marker='.')
         plt.show()
+
+
+    @staticmethod
+    def makeRegularAxis(points, plotDensity=[None,None]):
+        '''
+        Makes regular axis from arbitrarily spaced points, for use with contour and streamline plotting.
+        - points - list of 2D coordinates of original irregular points
+        - plotDensity - the number of points to plot along the x and y axis. If any is None, the functions will attempt to mimic the original's data density in that direction
+        '''
+        # Get plot density from input or try to mimic original data density
+        for i,axis in enumerate(plotDensity):
+            if axis is None:
+                # Get all points of this dimension
+                dim_discrete = np.array(points[i])
+
+                # Get unique 'ticks' of this axis with some tolerance for numeric error
+                ticks = np.unique(dim_discrete.round(decimals=6))
+
+                plotDensity[i] = ticks.size
+
+        # Create new regularly spaced axis
+        dim_max = np.max(points,axis=1)
+        dim_min = np.min(points,axis=1)
+        xy_i = np.vstack([np.linspace(dim_min[0], dim_max[0], num=plotDensity[0]), 
+                                np.linspace(dim_min[1], dim_max[1], num=plotDensity[1])])
+
+        return xy_i
+
+    @staticmethod
+    def makeContourPlot(values, points, numTicks, title=None, regularPoints=None, axisRange=[None,None], boundaryPoints=None):
+        '''
+        Creates contour plot figure from 
+        - values - values to plot at each point in points
+        - points - list of 2D coords corresponding to the values, if regularPoints is not specified, this is assumed to be arranged in a regular grid
+        - numTicks - number of ticks for the colour bar
+        - title - plot title
+        - regularPoints - if this is specified, it is assumed that the input values need to be interpolated from the arbitrarily arranged points to the regularPoints
+        - axisRange - the max and min values for the colormap and colourbar
+        - boundaryPoints - for drawing a black border for the contour plot
+        '''
+        # Interpolate to a regularly spaced grid if needed
+        if regularPoints is not None:
+            values = griddata((points[0],points[1]), values, (regularPoints[0][None,:],regularPoints[1][:,None]), method='linear')
+        else:
+            regularPoints = points
+
+        # Make our own reasonable max and min range if not specified
+        if None in axisRange:
+            (minVal, maxVal) = Plots.__getContourRange__(values)
+        else:
+            minVal = axisRange[0]
+            maxVal = axisRange[1]
+
+        # Make ticks for colormap
+        ticks = np.linspace(minVal,maxVal,numTicks)
+        # Make colormap levels
+        levels = np.linspace(minVal,maxVal,101)
+
+        # Make contour plot
+        plt.figure()
+        plt.gca().set_aspect('equal', adjustable='box')
+        plt.title(title)
+        plt.contourf(regularPoints[0],regularPoints[1],values,levels=levels,cmap='jet',vmin=minVal,vmax=maxVal)
+        plt.colorbar(ticks=ticks)
+        plt.axis=('off')
+        # Draw boundary
+        if boundaryPoints is not None:
+            plt.plot(boundaryPoints[0], boundaryPoints[1], 'k-')
 
 
     @staticmethod
