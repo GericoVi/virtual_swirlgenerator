@@ -27,7 +27,7 @@ class Contour:
         
         # Extract data into attributes
         self.imgArray = cv2.imread(imgFile)
-        self.range = range
+        self.range = np.sort(range)             # Make sure the colourmap range is increasing
         self.cmap = cmap
 
         # Image geometry
@@ -35,9 +35,13 @@ class Contour:
         self.imgArea = self.imgGeom[0] * self.imgGeom[1]
 
         # Initialise some attributes
+        self.values = None                          # Values extracted from contour plot
         self.contours = None                        # Edges within image as contours (binary image array)
         self.boundaries = None                      # ( (centre_xy,radius), (top_left_x, top_left_y, width, height) ), of bounding circles/boxes
         self.plotPixels = None                      # [[complex coords], [B,G,R]] - stores the BGR 'vectors' of each pixel and their corresponding coordinates (mapped to actual inlet dimensions)
+        self.debug_fig = None                       # Placeholder attribute - used for storing any debugging related figures
+        self.error = 0                              # Error flag
+        self.error_message = None                   # Corresponding error message
 
         # Flag for showing 
         self.showSegmentation = showSegmentation
@@ -56,18 +60,26 @@ class Contour:
         # Get the bounding circle/box of the contour plot and colour bar
         self.segmentImage(getColourbar)
 
-        # Get the pixels within the plot and their coords in terms of the inlet dimensions
-        self.getPlotPixels()
+        # Continue if image segmentation was successful
+        if self.error == 0:
+            # Get the pixels within the plot and their coords in terms of the inlet dimensions
+            self.getPlotPixels()
 
-        if cmap is None:
-            # Extract the colourmap associated to this plot from the image if needed
-            self.__getCmap__()
+            if cmap is None:
+                # Extract the colourmap associated to this plot from the image if needed
+                self.__getCmap__()
 
-        # Get points for sampling the contour plot
-        self.samples = Contour.samplePoints(self.sampleDist[0],self.sampleDist[1],self.boundaries[0][1])
+            # Get points for sampling the contour plot
+            self.samples = Contour.samplePoints(self.sampleDist[0],self.sampleDist[1],self.boundaries[0][1])
 
-        # Get values at sample points
-        self.__getValues__()
+            # Get values at sample points
+            self.__getValues__()
+        
+        else:
+            if self.error == 1:
+                self.error_message = f'Suitable plot area not found in {imgFile}'
+            elif self.error == 2:
+                self.error_message = f'Suitable colour bar not found in {imgFile}'
 
 
     @staticmethod
@@ -144,6 +156,13 @@ class Contour:
         # Form tuple and assign to attribute
         self.boundaries = (plot_circle, colourbar_box)
 
+        if self.error != 0:
+            # If error flag, there was no qualifying contours found during one of the checks (either to find the plot or the colourbar)
+            # So we will draw the contours, so we can debug
+            cv2.drawContours(img, self.contours, -1, (0,255,0), 1)
+            from matplotlib import pyplot as plt
+            plt.figure(), plt.imshow(cv2.cvtColor(img,cv2.COLOR_BGR2RGB))
+
 
     def __findPlot__(self, drawing=None):
         '''
@@ -157,17 +176,23 @@ class Contour:
         # Get the contours which are larger than half the whole image area - these will probably be the edges around the contour plot
         possible_contours = [contour for contour in self.contours if cv2.contourArea(contour) >= 0.3*self.imgArea]
 
-        # The smallest contour out of these will probably be the one at the edge of the plot
-        plot_edge_idx = np.argmin([cv2.contourArea(contour) for contour in possible_contours])
+        try:
+            # The smallest contour out of these will probably be the one at the edge of the plot
+            plot_edge_idx = np.argmin([cv2.contourArea(contour) for contour in possible_contours])
 
-        # Get the bounding cirlce of the plot 
-        centre, radius = cv2.minEnclosingCircle(possible_contours[plot_edge_idx])
+            # Get the bounding cirlce of the plot 
+            centre, radius = cv2.minEnclosingCircle(possible_contours[plot_edge_idx])
 
-        # Draw on image if it was given - does not need to be outputted since image is passed by reference
-        if drawing is not None:
-            cv2.circle(drawing, (int(centre[0]), int(centre[1])), int(radius), (0,0,255),2)
+            # Draw on image if it was given - does not need to be outputted since image is passed by reference
+            if drawing is not None:
+                cv2.circle(drawing, (int(centre[0]), int(centre[1])), int(radius), (0,0,255),2)
 
-        return (centre, radius)
+            return (centre, radius)
+
+        # If plot circle was not found, set error
+        except:
+            self.error = 1
+            return None
 
 
     def __findColourbar__(self, drawing=None):
@@ -197,17 +222,23 @@ class Contour:
             #cv2.circle(img, (cx,cy),1,(0,255,0),3)
             #cv2.rectangle(img, (int(rectangle[0]), int(rectangle[1])), (int(rectangle[0]+rectangle[2]), int(rectangle[1]+rectangle[3])), (255,0,0),3)
 
-        # Get the index of the bounding box in the lower half of the image with the largest area - probably the colourbar
-        bounding_idx = np.argmax([rectangle[2]*rectangle[3] for rectangle in rectangles])
+        try:
+            # Get the index of the bounding box in the lower half of the image with the largest area - probably the colourbar
+            bounding_idx = np.argmax([rectangle[2]*rectangle[3] for rectangle in rectangles])
 
-        # Get actual bounding box from list
-        boundingbox = rectangles[bounding_idx]
+            # Get actual bounding box from list
+            boundingbox = rectangles[bounding_idx]
 
-        # Draw on image if it was given - does not need to be outputted since image is passed by reference
-        if drawing is not None:
-            cv2.rectangle(drawing, (int(boundingbox[0]), int(boundingbox[1])), (int(boundingbox[0]+boundingbox[2]), int(boundingbox[1]+boundingbox[3])), (255,0,0),2)
+            # Draw on image if it was given - does not need to be outputted since image is passed by reference
+            if drawing is not None:
+                cv2.rectangle(drawing, (int(boundingbox[0]), int(boundingbox[1])), (int(boundingbox[0]+boundingbox[2]), int(boundingbox[1]+boundingbox[3])), (255,0,0),2)
 
-        return boundingbox
+            return boundingbox
+        
+        # If colour bar was not found, set error
+        except:
+            self.error = 2
+            return None
 
 
     def __getCmap__(self):
