@@ -177,7 +177,7 @@ class Plots:
         return xy_i
 
     @staticmethod
-    def makeContourPlot(values, points, numTicks, title=None, regularPoints=None, axisRange=[None,None], boundaryPoints=None):
+    def makeContourPlot(values, points, numTicks, title=None, regularPoints=None, axisRange=[None,None], boundaryPoints=None, cmap=None):
         '''
         Creates contour plot figure from 
         - values - values to plot at each point in points
@@ -187,6 +187,7 @@ class Plots:
         - regularPoints - if this is specified, it is assumed that the input values need to be interpolated from the arbitrarily arranged points to the regularPoints
         - axisRange - the max and min values for the colormap and colourbar
         - boundaryPoints - for drawing a black border for the contour plot
+        - cmap - colourmap to use when plotting
         '''
         # Interpolate to a regularly spaced grid if needed
         if regularPoints is not None:
@@ -198,6 +199,8 @@ class Plots:
         if None in axisRange:
             (minVal, maxVal) = Plots.__getContourRange__(values)
         else:
+            # Make sure the range is increasing
+            axisRange = np.sort(axisRange)
             minVal = axisRange[0]
             maxVal = axisRange[1]
 
@@ -206,11 +209,14 @@ class Plots:
         # Make colormap levels
         levels = np.linspace(minVal,maxVal,101)
 
+        if cmap is None:
+            cmap = 'jet'
+
         # Make contour plot
         plt.figure()
         plt.gca().set_aspect('equal', adjustable='box')
         plt.title(title)
-        plt.contourf(regularPoints[0],regularPoints[1],values,levels=levels,cmap='jet',vmin=minVal,vmax=maxVal)
+        plt.contourf(regularPoints[0],regularPoints[1],values,levels=levels,cmap=cmap,vmin=minVal,vmax=maxVal)
         plt.colorbar(ticks=ticks)
         plt.axis=('off')
         # Draw boundary
