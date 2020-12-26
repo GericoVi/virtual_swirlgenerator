@@ -140,7 +140,6 @@ class Contour:
             # Show with matplotlib so we can zoom
             from matplotlib import pyplot as plt
             plt.figure(), plt.imshow(cv2.cvtColor(img,cv2.COLOR_BGR2RGB))
-            plt.show()
 
         # Form tuple and assign to attribute
         self.boundaries = (plot_circle, colourbar_box)
