@@ -135,8 +135,11 @@ class Contour:
         # Get edges as a binary image with the canny algorithm - with these threshold values, the plot and colour bar edges are reliably found while the contour lines within the plot are mostly ignored
         canny_edges = cv2.Canny(img_grey,100,200)
 
+        # Dilate the edges so we can close small gaps (with a 3x3 rectangular kernel)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(3,3))
+        dilated = cv2.dilate(canny_edges, kernel)
         # Get edges as contours (lists of points) - as just a list with no hierarchical relationships (we don't need the hierarchy) and with no approximation so all points within the contour are returned
-        self.contours, _ = cv2.findContours(canny_edges,cv2.RETR_LIST,cv2.CHAIN_APPROX_NONE)
+        self.contours, _ = cv2.findContours(dilated,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
 
         # Find the bounding rectangle for the colour bar if needed
         if getColourbar:
