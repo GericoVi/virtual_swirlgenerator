@@ -218,7 +218,7 @@ class Plots:
         plt.title(title)
         plt.contourf(regularPoints[0],regularPoints[1],values,levels=levels,cmap=cmap,vmin=minVal,vmax=maxVal)
         plt.colorbar(ticks=ticks)
-        plt.axis=('off')
+        plt.axis('off')
         # Draw boundary
         if boundaryPoints is not None:
             plt.plot(boundaryPoints[0], boundaryPoints[1], 'k-')
