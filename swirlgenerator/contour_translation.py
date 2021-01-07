@@ -322,7 +322,7 @@ class Contour:
         self.plotPixels = ((plotCoords),(plotPixels))
         
 
-    def getValuesAtNodes(self, nodes):
+    def getValuesAtNodes(self, nodes, interpolation='linear'):
         '''
         Interpolates the values at the extracted sample points onto a separate input discretisation
         - nodes - the new discretisation points to interpolate the values to, list of 2D cartesian coordinates or complex coordinates
@@ -344,7 +344,7 @@ class Contour:
         samples = np.column_stack([self.samples.real*pixToUnit, self.samples.imag*pixToUnit])
 
         # Interpolate onto desired discretisation
-        values = griddata((samples[:,0], samples[:,1]), self.values, (nodes.real, nodes.imag), method='linear')
+        values = griddata((samples[:,0], samples[:,1]), self.values, (nodes.real, nodes.imag), method=interpolation)
 
         # Since we have not sampled at the edges, the boundary nodes will have nan values.
         # Need to use griddata again for boundary nodes using the 'nearest' interpolation method
