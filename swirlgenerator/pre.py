@@ -254,22 +254,22 @@ class Input:
         - lines - all lines from the file
         '''
 
-        inletFound = False
-        pointFound = False
+        inletIdx = None
+        pointIdx = None
+        fileValid = False
         # Loop through lines in file to get the indices of where the inlet boundary and the points definitions start
         for i,line in enumerate(lines):
             if 'inlet' in line.lower():
                 inletIdx = i
-                inletFound = True
             if 'NPOIN' in line:
                 pointIdx = i
-                pointFound = True
             
-            if inletFound and pointFound:
+            if inletIdx is not None and pointIdx is not None:
+                fileValid = True
                 break
 
         # Check validity of mesh file by seeing if the above lines were found
-        if not inletFound or not pointFound:
+        if not fileValid:
             raise RuntimeError('Invalid mesh file')
 
         # Get number of elements/lines to read in next line
