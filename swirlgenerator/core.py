@@ -472,7 +472,7 @@ class FlowField:
         - so calling script does not need to import numpy just for this
         '''
 
-        np.savez(outputFile, velocity=self.velocity, rho=self.rho, pressure=self.pressure, swirl=self.swirlAngle)
+        np.savez(outputFile, velocity=self.velocity, rho=self.rho, pressure=self.pressure, swirl=self.swirlAngle, radialangle=self.radialAngle)
 
 
     def load(self, file):
@@ -481,7 +481,7 @@ class FlowField:
         '''
 
         # Extract file into an npz file
-        npzfile = np.load(file)
+        npzfile = np.load(file, allow_pickle=True)
 
         # Check if correct format
         if ('velocity' in npzfile and 'rho' in npzfile and 'pressure' in npzfile and 'swirl' in npzfile):
