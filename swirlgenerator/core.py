@@ -33,7 +33,7 @@ class Vortices:
     '''
 
     # Object constructor accepts lists also for convenience, then later converts to numpy arrays
-    def __init__(self, model: int = None, centres: Union[list, np.ndarray] = None, strengths: Union[list, np.ndarray] = None, radius: Union[list, np.ndarray] = None, 
+    def __init__(self, model: str = None, centres: Union[list, np.ndarray] = None, strengths: Union[list, np.ndarray] = None, radius: Union[list, np.ndarray] = None, 
                         axialVel: float = None, inputObject: pre.Input = None):
 
         # Extract attributes from Input object if supplied
@@ -489,7 +489,10 @@ class FlowField:
             self.rho         = npzfile['rho']
             self.pressure    = npzfile['pressure']
             self.swirlAngle  = npzfile['swirl']
-
         else:
             raise RuntimeError('File format/contents invalid - make sure this file was created by swirlGenerator.saveFigsToPdf')
+
+        # Older saved data does not have this
+        if ('radialangle' in npzfile):
+            self.radialAngle = npzfile['radialangle']
 
