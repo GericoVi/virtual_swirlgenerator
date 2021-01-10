@@ -289,8 +289,8 @@ class Input:
         nodes = np.array([lines[pointIdx + i+1] for i in nodeIdxs])
 
         # Split each string to isolate the numbers, and convert to floats
-        nodes = [np.array(line).astype(float) for line in np.char.split(nodes)]             # Returns list of numpy arrays
-
+        nodes = [np.array(line[:3]).astype(float) for line in np.char.split(nodes)]             # Returns list of numpy arrays
+        
         # Stack into a single array
         nodes = np.vstack(nodes)
 
