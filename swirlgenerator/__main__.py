@@ -65,15 +65,6 @@ def main():
                 flowfield.reconstructDomain(tangential.getValuesAtNodes(flowfield.coords), radial.getValuesAtNodes(flowfield.coords), inputData.axialVel)
 
 
-            # Get RMSE between calculated swirl angle field and that estimated from contour plot image if requested
-            if options.validate:
-                if tangential is None:
-                    tangential = ct.Contour(inputData.tanImg, inputData.tanRng, cmap=inputData.tancmap, sampleDist=[inputData.numRings, inputData.angRes])
-
-                values = tangential.getValuesAtNodes(flowfield.coords)
-                print(f'RMSE compared to estimated plot values: {flowfield.getError(values)}')
-
-
             # Verify boundary conditions if requested
             if options.checkboundaries:
                 flowfield.checkBoundaries()
@@ -134,7 +125,6 @@ class Options:
 
         # Options based on the inputs in config file
         self.reconstruct = False            # Are we reconstructing the flow field from contour plots or creating from discrete vortices
-        self.validate = False               # Are we getting the error between the created flow field and a swirl angle contour plot
 
         # Misc flags
         self.exit = False
@@ -145,7 +135,6 @@ class Options:
             print('Usage: swirlgenerator [config file] [options]')
             print('Options:')
             print('-reconstruct             Reconstructs flow field from input contour plot images rather than vortex method - overrides priority')
-            print('-validate                Gets the RMSE between the calculated swirl angle and the estimated values from a contour plot image')
             print('-checkboundaries         Runs the function which checks if the boundary conditions have been satisfied')
             print('-show                    Shows the plots of the flow fields in separate windows')
             print('-saveplots               Saves the plots into a pdf file with the same name as the config file')
@@ -177,9 +166,6 @@ class Options:
 
         # Override priority and use reconstruction method even if domain vortices have been defined
         self.reconstruct = (True if '-reconstruct' in self.arguments else False)
-
-        # Validate the calculated swirl angle with the estimated values translated from a contour plot
-        self.validate = (True if '-validate' in self.arguments else False)
 
         # Check validity of boundary conditions
         self.checkboundaries = (True if '-checkboundaries' in self.arguments else False)
@@ -242,10 +228,6 @@ class Options:
         if (self.reconstruct and (inputdata.tanImg is None or inputdata.tanRng is None or inputdata.radImg is None or inputdata.radRng is None)):
             raise RuntimeError(f'\nRequired flow angle plot information missing in {self.configfile} for flow field reconstruction')
 
-        # Check if validation mode
-        if (self.validate and (inputdata.radImg is None or inputdata.radRng is None)):
-            raise RuntimeError(f'\nRequired flow angle plot information missing in {self.configfile} for flow field validation')
-
         # Check if contour plot section is present
         if inputdata.contours_flag:
             # If both vortex definition and contour translation section present and no command line overrside given, user needs to pick preferred method
@@ -268,7 +250,7 @@ class Options:
                 self.reconstruct = True
 
             # See if colourmap names have been defined and turn them into actual RGB arrays
-            if ((self.reconstruct or self.validate) and (inputdata.tancmap is not None or inputdata.radcmap is not None)):
+            if (self.reconstruct and (inputdata.tancmap is not None or inputdata.radcmap is not None)):
                 # Do import here, not needed anywhere else
                 from matplotlib.cm import get_cmap
 
