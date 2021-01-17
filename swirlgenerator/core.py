@@ -377,15 +377,13 @@ class FlowField:
         return velComp
 
 
-    def checkBoundaries(self, tolerance=1e-6):
+    def checkBoundaries(self, plot=False):
         '''
         For verifying physically correct boundary conditions.
         ie checking if there is any flow across the solid boundaries and no slip condition
-        - tolerance - maximum flux out of boundary considered negligible
+        - Outputs the average specific flux out per unit perimiter of the boundary (units/s)
         - Currently only checks for no-flux condition
         '''
-
-        boundary_ok = True
 
         # Get planar velocity vectors as complex numbers
         vels   = self.velocity[:,0] + 1j * self.velocity[:,1]
@@ -405,7 +403,7 @@ class FlowField:
         # Calculate vectors which are perpendicular to the boundary curve
         perpendicularVect = np.empty(self.boundaryCurve.size, dtype=complex)
         for i, vect in enumerate(parallelVect):
-            perpendicularVect[i] = vect.imag - 1j*vect.real
+            perpendicularVect[i] = -vect.imag + 1j*vect.real
 
         # Now calculate the component of the velocity at each point, perpendicular to the boundary curve
         velOut = np.array([vel*np.vdot(vel,perp) for vel,perp in zip(sortedVels,perpendicularVect)])
@@ -413,20 +411,18 @@ class FlowField:
         # Integrate to get total flux through boundary
         fluxOut = np.sum(np.abs(velOut)*np.abs(parallelVect)/2)
 
-        # Check if this flux is considered negligible or not
-        if fluxOut > tolerance:
-            boundary_ok = False
-            print(f'Flux out of boundary: {fluxOut} units/sec')
+        # Get avg flux out per unit boundary length
+        perimeter = np.sum(np.abs(np.diff(self.boundaryCurve, axis=0)))
 
-
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # plt.gca().set_aspect('equal', adjustable='box')
-        # plt.quiver(self.boundaryCurve.real, self.boundaryCurve.imag, velOut.real,velOut.imag,color='red')
-        # plt.quiver(self.boundaryCurve.real, self.boundaryCurve.imag, sortedVels.real,sortedVels.imag,color='blue')
-        # plt.show()
+        if plot:
+            import matplotlib.pyplot as plt
+            plt.figure()
+            plt.gca().set_aspect('equal', adjustable='box')
+            plt.quiver(self.boundaryCurve.real, self.boundaryCurve.imag, velOut.real,velOut.imag,color='red')
+            plt.quiver(self.boundaryCurve.real, self.boundaryCurve.imag, parallelVect.real,parallelVect.imag,color='blue')
+            #plt.show()
             
-        return boundary_ok
+        return fluxOut/perimeter
 
     
     def getSwirl(self):
