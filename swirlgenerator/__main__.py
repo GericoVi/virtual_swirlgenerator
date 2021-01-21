@@ -209,23 +209,26 @@ class Options:
         # Check vortex method inputs if we are going to use it
         if self.vm:
             if inputdata.vortDefs_flag:
-                if inputdata.vortModel is None:
+                if inputdata.vortModel is None or inputdata.vortModel == '':
                     raise RuntimeError(f'\nVortex model to be used was not defined in {self.configfile}')
 
                 if inputdata.numVortices < 1:
                     raise RuntimeError(f'\nAt least one vortex needs to be defined in {self.configfile}')
 
             else:
-                raise RuntimeError(f'Vortex method specified but no vortex definition section found in {self.configfile}')
+                raise RuntimeError(f'\nVortex method specified but no vortex definition section found in {self.configfile}')
 
         # Check contour translation method inputs if we are going to use it
         if self.ctm:
+            print('test')
             if inputdata.contours_flag:
-                if inputdata.tanImg is None or inputdata.tanRng is None or inputdata.radImg is None or inputdata.radRng is None:
+                if inputdata.tanImg is None or inputdata.tanRng is None or inputdata.radImg is None or inputdata.radRng is None or \
+                   inputdata.tanImg == '' or inputdata.tanRng == '' or inputdata.radImg == '' or inputdata.radRng == '':
+                   
                     raise RuntimeError(f'\nRequired contour plot information missing in {self.configfile} for flow field reconstruction')
 
             else:
-                raise RuntimeError(f'Contour translation method specified but no contour translation section found in {self.configfile}')
+                raise RuntimeError(f'\nContour translation method specified but no contour translation section found in {self.configfile}')
         
         # Set defaults
         inputdata.axialVel = (1.0 if inputdata.axialVel is None else inputdata.axialVel)
