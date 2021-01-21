@@ -378,7 +378,7 @@ class Contour:
             # Get BGR for this pixel
             BGR = pixelBGRs[closest_idx]
             #print(BGR)
-            # Get index of closest closer to this value from the colour map levels, by getting the Euclidean distance in a 3D space where B,G,R are the dimensions
+            # Get index of colour closest to this value from the colour map levels, by getting the Euclidean distance in a 3D space where B,G,R are the dimensions
             level_idx = np.argmin(np.linalg.norm((cmap - BGR), axis=1))
 
             # Normalise
