@@ -36,7 +36,8 @@ flowfield = core.FlowField(nodes)
 ```
 
 From here, there are two methods which can be used to generate a swirling inlet velocity field:
-- creating a velocity profile by combining the effect of multiple discrete vortices (from core.py module).
+
+- **[Vortex Method]**, creating a velocity profile by combining the effect of multiple discrete vortices (from core.py module).
 ```
 # Initialise the domain configuration with information about each vortex to be defined within the domain.
 vortexDefs = core.Vortices(model, centres, strengths, core_radii)
@@ -45,7 +46,7 @@ vortexDefs = core.Vortices(model, centres, strengths, core_radii)
 flowfield.computeDomain(vortexDefs, axialVel)
 ```
 
-- reconstructing a velocity profile by translating contour plot images of tangenetial and radial flow angles (from contour_translation.py module). Swirlgenerator has the capability of extracting the colour map from a colour bar within the image, but specifying a colour map name gives significant accuracy increase.
+- **[Contour Translation Method]**, reconstructing a velocity profile by translating contour plot images of tangenetial and radial flow angles (from contour_translation.py module). Swirlgenerator has the capability of extracting the colour map from a colour bar within the image, but specifying a colour map name gives significant accuracy increase.
 ```
 import contour_translation as ct
 
