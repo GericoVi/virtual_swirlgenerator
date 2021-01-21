@@ -150,7 +150,7 @@ class Options:
             raise RuntimeError(f'Configuration file {self.configfile} not found')
 
         # Try and use the defined method
-        self.vm  = (True if 'vm' in self.arguments else False)
+        self.vm  = (True if '-vm' in self.arguments else False)
         self.ctm = (True if '-ctm' in self.arguments else False)
 
         # Check validity of boundary conditions
