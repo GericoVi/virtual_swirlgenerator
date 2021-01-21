@@ -32,7 +32,7 @@ def main():
 
 
             # Create flow field with vortex method
-            if not options.reconstruct:
+            if not options.ctm:
                 print('Calculating flow field...')
                 # Initialise domain configuration object with vortex definitions
                 vortexDefs = sg.Vortices(inputObject=inputData)
@@ -109,7 +109,8 @@ class Options:
         self.savenumpy          = False
 
         # Options based on the inputs in config file
-        self.reconstruct = False            # Are we reconstructing the flow field from contour plots or creating from discrete vortices
+        self.ctm    = False            # Are we reconstructing the flow field from contour plots or creating from discrete vortices
+        self.vm     = False            # Are we defining the flow field with vortex models
 
         # Misc flags
         self.exit = False
@@ -119,7 +120,8 @@ class Options:
         if ('-help' in self.arguments[1]):
             print('Usage: swirlgenerator [config file] [options]')
             print('Options:')
-            print('-reconstruct             Reconstructs flow field from input contour plot images rather than vortex method - overrides priority')
+            print('-vm                      Creates flow field from mathematical model and parameters in config file')
+            print('-ctm                     Reconstructs flow field from input contour plot images')
             print('-checkboundaries         Runs the function which checks if the boundary conditions have been satisfied')
             print('-show                    Shows the plots of the flow fields in separate windows')
             print('-saveplots               Saves the plots into a pdf file with the same name as the config file')
@@ -147,8 +149,9 @@ class Options:
         if not os.path.exists(self.configfile):
             raise RuntimeError(f'Configuration file {self.configfile} not found')
 
-        # Override priority and use reconstruction method even if domain vortices have been defined
-        self.reconstruct = (True if '-reconstruct' in self.arguments else False)
+        # Try and use the defined method
+        self.vm  = (True if 'vm' in self.arguments else False)
+        self.ctm = (True if '-ctm' in self.arguments else False)
 
         # Check validity of boundary conditions
         self.checkboundaries = (True if '-checkboundaries' in self.arguments else False)
@@ -179,9 +182,6 @@ class Options:
         # Formats supported for writing boundary conditions
         formats = ['su2']
 
-        # Valid input shapes
-        inlet_shapes = ['circle', 'rect', 'square']
-
         # These metadata fields are necessary for using any functionality
         if not inputdata.metadata_flag:
             raise RuntimeError(f'\nMetadata missing in file {self.configfile}')
@@ -192,63 +192,65 @@ class Options:
         if (inputdata.format not in formats):
             raise NotImplementedError(f"\n{format} not supported")
 
-        # Check if vortices have been defined
-        if inputdata.vortDefs_flag:
-            # Check vortex definitions
-            if inputdata.vortModel is None:
-                raise RuntimeError(f'\nVortex model to be used was not defined in {self.configfile}')
+        # Check flags and update as necessary
+        if self.vm and self.ctm:
+            self.__askuser__()
 
-            if inputdata.numVortices < 1:
-                raise RuntimeError(f'\nAt least one vortex needs to be defined in {self.configfile}')
+        elif not self.vm and not self.ctm:
+            if inputdata.vortDefs_flag and inputdata.contours_flag:
+                self.__askuser__()
 
-        # Check if reconstruction mode
-        if (self.reconstruct and (inputdata.tanImg is None or inputdata.tanRng is None or inputdata.radImg is None or inputdata.radRng is None)):
-            raise RuntimeError(f'\nRequired flow angle plot information missing in {self.configfile} for flow field reconstruction')
+            elif inputdata.vortDefs_flag:
+                self.vm  = True
 
-        # Check if contour plot section is present
-        if inputdata.contours_flag:
-            # If both vortex definition and contour translation section present and no command line overrside given, user needs to pick preferred method
-            if inputdata.vortDefs_flag and not self.reconstruct:
-                while True:
-                    choice = input(f'Vortex definitions section and contour translation section both present in {self.configfile}.\nChoose flow field calculation method (V/R):')
+            elif inputdata.contours_flag:
+                self.ctm = True
 
-                    if choice.lower() == 'r':
-                        self.reconstruct =  True
-                        break
-                    elif choice.lower() == 'v':
-                        self.reconstruct = False
-                        break
-                    else:
-                        print('Invalid choice')
-                        continue
+        # Check vortex method inputs if we are going to use it
+        if self.vm:
+            if inputdata.vortDefs_flag:
+                if inputdata.vortModel is None:
+                    raise RuntimeError(f'\nVortex model to be used was not defined in {self.configfile}')
 
-            # If only contour translation section is present, then assume we want to do reconstruction
-            elif not inputdata.vortDefs_flag:
-                self.reconstruct = True
+                if inputdata.numVortices < 1:
+                    raise RuntimeError(f'\nAt least one vortex needs to be defined in {self.configfile}')
 
-            # See if colourmap names have been defined and turn them into actual RGB arrays
-            if (self.reconstruct and (inputdata.tancmap is not None or inputdata.radcmap is not None)):
-                # Do import here, not needed anywhere else
-                from matplotlib.cm import get_cmap
+            else:
+                raise RuntimeError(f'Vortex method specified but no vortex definition section found in {self.configfile}')
 
-                if inputdata.tancmap is not None:
-                    try:
-                        cmap = get_cmap(inputdata.tancmap)
-                        inputdata.tancmap = cmap(range(cmap.N))[:,0:3]
-                    except ValueError:
-                        raise ValueError(f'Invalid colourmap name {inputdata.tancmap} in {self.configfile}. See https://matplotlib.org/gallery/color/colormap_reference.html?highlight=colormap%20reference for list of available')
+        # Check contour translation method inputs if we are going to use it
+        if self.ctm:
+            if inputdata.contours_flag:
+                if inputdata.tanImg is None or inputdata.tanRng is None or inputdata.radImg is None or inputdata.radRng is None:
+                    raise RuntimeError(f'\nRequired contour plot information missing in {self.configfile} for flow field reconstruction')
 
-                if inputdata.radcmap is not None:
-                    try:
-                        cmap = get_cmap(inputdata.radcmap)
-                        inputdata.radcmap = cmap(range(cmap.N))[:,0:3]
-                    except ValueError:
-                        raise ValueError(f'Invalid colourmap name {inputdata.radcmap} in {self.configfile}. See https://matplotlib.org/gallery/color/colormap_reference.html?highlight=colormap%20reference for list of available')
-
+            else:
+                raise RuntimeError(f'Contour translation method specified but no contour translation section found in {self.configfile}')
+        
         # Set defaults
         inputdata.axialVel = (1.0 if inputdata.axialVel is None else inputdata.axialVel)
 
         return inputdata
+
+    # Utility function for prompting user
+    def __askuser__(self):
+        while True:
+            choice = input(f'Vortex definitions section and contour translation section both present in {self.configfile}.\nChoose flow field calculation method (V/R):')
+
+            if choice.lower() == 'r':
+                self.ctm = True
+                self.vm  = False
+                break
+            elif choice.lower() == 'v':
+                self.vm  = True
+                self.ctm = False
+                break
+            else:
+                print('Invalid choice')
+                continue
+
+    # Utility function for getting the values of a named colour map using matplot lib
+
 
 
 if __name__ == '__main__':
