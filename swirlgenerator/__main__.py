@@ -26,19 +26,6 @@ def main():
         if not options.exit:
             tangential = None
 
-            # Create a test meshed geometry based on user inputs if requested - node coordinates of flowfield object taken from the inlet of this mesh
-            if options.makemesh:
-                print('Generating mesh...')
-                # Do import here so user won't need the dependencies if they don't need this functionality
-                import maketestdomain as domain
-
-                if inputData.meshfilename is None:
-                    raise RuntimeError("Mesh generation requested but no filename specified in config")
-                else:
-                    domain.testDomain(inputData, inputData.meshfilename, options.showmesh)
-                    print(f"Mesh file written to {inputData.meshfilename}")
-
-
             # Intialise flow field object with coordinate system
             print(f'Extracting inlet nodes from {inputData.meshfilename}...')
             flowfield = sg.FlowField(inputData.getNodes())
@@ -138,8 +125,6 @@ class Options:
             print('-checkboundaries         Runs the function which checks if the boundary conditions have been satisfied')
             print('-show                    Shows the plots of the flow fields in separate windows')
             print('-saveplots               Saves the plots into a pdf file with the same name as the config file')
-            print('-makemesh                Creates a meshed empty domain with the parameters defined in the config file')
-            print('-showmesh                Renders the mesh using GMSH GUI - beware this can be very slow with large meshes')
             print('-showinletnodes          For plotting the inlet nodes - for confirming correct extraction of nodes from mesh')
             print('-savenumpy               For saving the created flowfield as its component numpy arrays')
 
