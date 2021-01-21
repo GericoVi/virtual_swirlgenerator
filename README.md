@@ -73,4 +73,4 @@ writeBC.writeSU2(flowfield, filename)
 ## Limitations
 - Only su2 format for the boundary condition is currently supported by the *writeBC* modules
 - Only su2 mesh format can be read directly by the *pre* module
-- Only supports incompressible boundary conditions
+- Vortex method only supports incompressible boundary conditions
