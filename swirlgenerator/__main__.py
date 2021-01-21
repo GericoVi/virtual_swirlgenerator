@@ -235,7 +235,7 @@ class Options:
     # Utility function for prompting user
     def __askuser__(self):
         while True:
-            choice = input(f'Vortex definitions section and contour translation section both present in {self.configfile}.\nChoose flow field calculation method (V/R):')
+            choice = input('Command line inputs or config file contents ambiguous.\nChoose flow field calculation method [Vortex method or Contour translation method] (V/R):')
 
             if choice.lower() == 'r':
                 self.ctm = True
