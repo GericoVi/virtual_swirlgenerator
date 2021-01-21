@@ -146,6 +146,12 @@ class Input:
             except:
                 pass
 
+            # If colour map name has been defined, get values
+            if self.tancmap is not None:
+                self.tancmap = Input.getCmapValues(self.tancmap)
+            if self.radcmap is not None:
+                self.radcmap = Input.getCmapValues(self.radcmap)
+
 
         # Optional section
         if self.extra_flag:
@@ -251,3 +257,18 @@ class Input:
 
         # Return array of vectors - 3D coordinate of each node
         return nodes
+
+
+    @staticmethod
+    def getCmapValues(cmapName):
+        # Do import here, not needed anywhere else
+        from matplotlib.cm import get_cmap
+
+        try:
+            cmap = get_cmap(cmapName)
+            cmapValues = cmap(range(cmap.N))[:,0:3]
+        except ValueError:
+            raise ValueError(f'Invalid colourmap name \'{cmapName}\'. See https://matplotlib.org/gallery/color/colormap_reference.html?highlight=colormap%20reference for list of available')
+
+        return cmapValues
+
