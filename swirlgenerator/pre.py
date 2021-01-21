@@ -50,18 +50,6 @@ class Input:
         self.swirlPlotRange = [None,None]
         self.swirlPlotNTicks = None
 
-        # Mesh generation parameters
-        self.shape = None
-        self.radius = None
-        self.curveNumCells = None
-        self.radialNumCells = None
-        self.xSide = None
-        self.ySide = None
-        self.zSide = None
-        self.xNumCells = None
-        self.yNumCells = None
-        self.zNumCells = None
-
         # Read in the config file on initialisation of the object since it has no other functionality anyway
         self.read(configfile)
 
@@ -177,39 +165,6 @@ class Input:
                 self.swirlPlotNTicks = int(extraParams.get('swirl_colorbar_num_ticks'))
             except:
                 pass
-
-
-        if self.mesh_flag:
-            # Get section
-            meshDefinitions = config['MESH DEFINITION']
-
-            # Get specified inlet shape
-            try:
-                self.shape = meshDefinitions.get('shape')
-
-                # Get mesh length parameters
-                self.zSide = float(meshDefinitions.get('z_side'))
-                self.zNumCells = int(meshDefinitions.get('z_num_cells'))
-
-                # Get necessary inputs for inlet shape
-                if self.shape == 'circle':
-                    # Get circle radius
-                    self.radius = float(meshDefinitions.get('radius'))
-                    # Get mesh density
-                    self.curveNumCells = int(meshDefinitions.get('quadrant_num_cells'))
-                    self.radialNumCells = int(meshDefinitions.get('radial_num_cells'))
-                    
-                elif (self.shape == 'rect' or self.shape == 'square'):
-                    # Get side lengths
-                    self.xSide = float(meshDefinitions.get('x_side'))
-                    self.ySide = float(meshDefinitions.get('y_side'))
-                    # Get mesh density
-                    self.xNumCells = int(meshDefinitions.get('x_num_cells'))
-                    self.yNumCells = int(meshDefinitions.get('y_num_cells'))
-
-            # Catch errors 
-            except ValueError:
-                raise ValueError("Invalid values defined for mesh/geometry")
 
 
     def getNodes(self):

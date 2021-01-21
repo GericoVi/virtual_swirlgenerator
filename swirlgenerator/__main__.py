@@ -105,8 +105,6 @@ class Options:
         self.checkboundaries    = False
         self.showplots          = False
         self.saveplots          = False
-        self.makemesh           = False
-        self.showmesh           = False
         self.showinletnodes     = False
         self.savenumpy          = False
 
@@ -154,12 +152,6 @@ class Options:
 
         # Check validity of boundary conditions
         self.checkboundaries = (True if '-checkboundaries' in self.arguments else False)
-
-        # Make a simple meshed geometry to test the boundary condition
-        self.makemesh = (True if '-makemesh' in self.arguments else False)
-
-        # Show created test mesh
-        self.showmesh = (True if '-showmesh' in self.arguments else False)
 
         # Show plots
         self.showFields = (True if ('-show' in self.arguments or '-showplots' in self.arguments) else False)
@@ -252,38 +244,6 @@ class Options:
                         inputdata.radcmap = cmap(range(cmap.N))[:,0:3]
                     except ValueError:
                         raise ValueError(f'Invalid colourmap name {inputdata.radcmap} in {self.configfile}. See https://matplotlib.org/gallery/color/colormap_reference.html?highlight=colormap%20reference for list of available')
-
-        if inputdata.mesh_flag:
-            if inputdata.shape is None:
-                raise RuntimeError(f'\nShape of inlet face must be specified in {self.configfile}')
-            if inputdata.shape not in inlet_shapes:
-                raise RuntimeError(f'\nSpecified inlet shape \'{inputdata.shape}\' in {self.configfile} is not valid')
-
-            # Check available mesh information for specific geometries
-            if (inputdata.shape == 'circle' and (inputdata.radius is None or inputdata.curveNumCells is None or inputdata.radialNumCells is None)):
-                raise RuntimeError(f'\nMissing mesh information for a circular inlet in {self.configfile}')
-
-            if ((inputdata.shape == 'rect' or inputdata.shape == 'square') and (inputdata.xSide is None or inputdata.ySide is None or inputdata.xNumCells is None or inputdata.yNumCells is None)):
-                raise RuntimeError(f'\nMissing mesh information for a rectangular inlet in {self.configfile}')
-        else:
-            # In case mesh generation has been requested in command line but no mesh properties provided in config
-            if self.makemesh:
-                raise RuntimeError(f'\n-makemesh option specified but no mesh properties defined in {self.configfile}')
-
-        # If no makemesh option given but mesh file in config can't be found, inform user
-        if (not self.makemesh and not os.path.exists(inputdata.meshfilename)):
-            while True:
-                txt = input(f'Specified mesh file {inputdata.meshfilename} was not found and -makemesh option not given.\nGenerate the mesh using properties in config file? [Y/N]')
-
-                if txt.lower() == 'y':
-                    self.makemesh = True
-                    break
-                elif txt.lower() == 'n':
-                    self.exit = True
-                    break
-                else:
-                    print('Invalid choice')
-                    continue
 
         # Set defaults
         inputdata.axialVel = (1.0 if inputdata.axialVel is None else inputdata.axialVel)
