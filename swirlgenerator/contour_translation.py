@@ -173,27 +173,36 @@ class Contour:
         - Internal function, should not be used outside Contours class
         - drawing - 3 channel array to draw the bounding circle to, won't draw if none
         - Outputs tuple - ([centre_x, centre_y], radius)
-        - Assumes that the contour plot takes up more than half of the image area and is roughly circular
         '''
 
-        # Get the contours which are larger than half the whole image area - these will probably be the edges around the contour plot
-        possible_contours = [contour for contour in self.contours if cv2.contourArea(contour) >= 0.3*self.imgArea]
+        # Pre-processing
+        grey = cv2.cvtColor(self.imgArray, cv2.COLOR_BGR2GRAY)
 
-        try:
-            # The smallest contour out of these will probably be the one at the edge of the plot
-            plot_edge_idx = np.argmin([cv2.contourArea(contour) for contour in possible_contours])
+        rows = grey.shape[1]
 
-            # Get the bounding cirlce of the plot 
-            centre, radius = cv2.minEnclosingCircle(possible_contours[plot_edge_idx])
+        # Get circle - tends to return the largest circle around plot with these parameters
+        circles = cv2.HoughCircles(grey, cv2.HOUGH_GRADIENT, 1, rows/8, param1=200, param2=30, minRadius=int(rows/4), maxRadius=int(rows/2))
+        # for x,y,r in circles[0]:
+        #     x,y,r = int(x), int(y), int(r)
+        #     cv2.circle(drawing, (x,y), r, (0,255,0), 1)
 
-            # Draw on image if it was given - does not need to be outputted since image is passed by reference
-            if drawing is not None:
-                cv2.circle(drawing, (int(centre[0]), int(centre[1])), int(radius), (0,0,255),2)
+        # cv2.imshow('circles',drawing)
+        # cv2.waitKey(0)
 
-            return (centre, radius)
+        # print(circles)
 
-        # If plot circle was not found, set error
-        except:
+        if circles is not None:
+            # Use the biggest circle
+            circle = circles[0, np.argmax(circles[0,:,2]), :]
+
+            x,y,r = circle
+            x,y,r = int(x), int(y), int(r)
+
+            cv2.circle(drawing, (x,y), r, (0,255,0), 1)
+
+            return ([x,y],r)
+
+        else:
             self.error = 1
             return None
 
@@ -360,7 +369,7 @@ class Contour:
         - Sets the self.values attribute
         '''
 
-        # Extract the arrays from the input tuple
+        # Extract the arrays from the tuple
         pixelCoords = self.plotPixels[0][:,0]
         pixelBGRs = self.plotPixels[1]
 
