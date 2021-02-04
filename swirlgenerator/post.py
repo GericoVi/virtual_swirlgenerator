@@ -27,7 +27,7 @@ class Plots:
         self.xy = np.vstack([flowfield.coords.real, flowfield.coords.imag])
 
         # Store variables for plotting
-        self.vel            = flowfield.velocity[:,0:2]
+        self.vel            = flowfield.velocity
         self.thermos        = [flowfield.rho, flowfield.pressure]
         self.swirlAngle     = flowfield.swirlAngle
         self.radialAngle    = flowfield.radialAngle
@@ -93,6 +93,9 @@ class Plots:
         plt.axis('off')
         # Draw boundary
         plt.plot(self.boundary[0], self.boundary[1],'k-')
+
+        # Make contour plot of streamwise velocity
+        Plots.makeContourPlot(self.vel[:,2], self.xy, 11, title='Axial velocity', regularPoints=self.xy_i, boundaryPoints=self.boundary)
 
 
     def plotThermos(self):
