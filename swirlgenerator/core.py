@@ -17,8 +17,8 @@ Matplotlib for doing visualisations
 
 # Fluid parameters
 GAMMA = 1.4
-kin_visc = 1.81e-5
-density = 1.225         # ISA sea level condition - for incompressible
+KIN_VISC = 1.81e-5
+DENSITY = 1.225         # ISA sea level condition - for incompressible
 
 class Vortices: 
     '''
@@ -74,11 +74,15 @@ class FlowField:
     - nodes - numpy array of the 2D coordinates of the inlet nodes (dtype=complex)
     '''
 
-    def __init__(self, nodes: np.ndarray):
+    def __init__(self, nodes: np.ndarray, compressible=False):
         # Initialise the actual flow field variables
         self.velocity   = None
         self.rho        = None
         self.pressure   = None
+
+        # Constant density
+        if not compressible:
+            self.rho = DENSITY
 
         # Initialise domain variables
         self.boundaryCurve = None
@@ -176,7 +180,7 @@ class FlowField:
             velComps[:,:,i] = func(vortDefs.getVortex(i))
 
             # Calculate the effect of solid walls on this vortex using mirror image vortices
-            velComps[:,:,i] = self.__boundary__(vortDefs.getVortex(i), velComps[:,:,i], func)
+            velComps[:,:,i] = self.makeSolidWall(vortDefs.getVortex(i), velComps[:,:,i], func)
 
 
         # Collate effects of each vortex
@@ -227,12 +231,11 @@ class FlowField:
         self.getSwirl()
 
     
-    def __boundary__(self, vortData, velComp, vortexFunc):
+    def makeSolidWall(self, vortData, velComp, vortexFunc):
         '''
         Models the effect of a solid wall on a vortex using the Method of Images.
         Effect of these image vortices are superimposed onto the input arrays.
-        - Internal function, should not be used outside core.py
-        - WIP ---- Only implemented for circular inlets
+        - Only implemented for circular inlets
         - vortData - tuple produced by getVortex() function of Vortices class
         - velComp - velocity field outputted by a vortex function
         - vortexFunc - pointer to the correct vortex function depending on chosen model
@@ -270,6 +273,63 @@ class FlowField:
             warnings.warn("Effect of solid boundaries for non-circular inlets have not been implemented")
             
         return velComp
+
+
+    def makeBoundaryLayer(self, ref_len, kappa=0.4, B=4.81):
+        '''
+        Rough function for imposing a turbulent boundary layer on the flow near the walls
+        Only works for circular ducts with origin at the centre
+        '''
+
+        # Mean velocity magnitude?
+        velMag = np.linalg.norm(self.velocity, axis=1)
+        u_inf = np.mean(velMag)
+
+        # Get Reynold's number based on reference length - distance the boundary layer has been developing for
+        Rex = self.rho * u_inf * ref_len / KIN_VISC
+
+        # Crudely estimate the BL thickness and skin friction coefficient - from BL theory
+        delta = ref_len * 0.38 * Rex**(-0.2)
+        cf = 0.059 * Rex**(-0.2)
+
+        # Get friction velocity from skin friction coefficient
+        u_tau = np.sqrt(0.5*cf*u_inf*u_inf)
+
+        # Get distance of each node from the wall
+        y = np.max(self.coords_polar.real) - self.coords_polar.real
+
+        # Get yplus
+        yplus = self.rho * u_tau * y / KIN_VISC
+
+        # Calc non-dimensional parameters
+        R = self.rho * u_tau * delta / KIN_VISC
+        u_inf_plus = u_inf / u_tau
+
+        # Eta in terms of y plus
+        eta = yplus / R
+
+        # Wake parameter
+        Pi = 0.5 * kappa * (u_inf_plus - (1/kappa) * np.log(R) - B)
+        
+        # Set inner region profile with Reichardt formulation of law of the wall
+        temp = yplus
+        temp[temp > R] = R
+        uplus1 = (1/kappa) * np.log(1 + kappa * temp) + 7.1 * (1 - np.exp(-temp/12))
+        
+        # Set the outer region's velocity defect law profile with Finlay formulation
+        temp = eta
+        temp[eta > 1] = 1
+        uplus2 = (1/kappa) * Pi * (((1/Pi) + 6) * temp**2 - ((1/Pi) + 4) * temp**3)
+
+        # Get full non-dimensional output profile
+        uplus = uplus1 + uplus2
+        # Redimensionalise - this is the adjusted velocity magnitude
+        u = uplus * u_tau
+
+        # Distribute the velocity magnitude into the components at the same proportions as before the BL correction
+        flowDirection = self.velocity / np.column_stack((velMag,velMag,velMag))
+
+        self.velocity = np.reshape(u,[u.size,1]) * flowDirection
 
     
     def __isoVortex__(self, vortData):
