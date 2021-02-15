@@ -17,7 +17,7 @@ Matplotlib for doing visualisations
 
 # Fluid parameters
 GAMMA = 1.4
-KIN_VISC = 1.81e-5
+KIN_VISC = 1.716e-5
 DENSITY = 1.225         # ISA sea level condition - for incompressible
 
 class Vortices: 
@@ -89,9 +89,12 @@ class FlowField:
         self._sortIdx_ = None
         self.isCircle = False
 
-        # Some comparison and metrics for swirl
+        # Swirl descriptors
         self.swirlAngle = None      # Tangential flow angle
         self.radialAngle = None     # Radial flow angle
+
+        # Misc parameters
+        self.bl_delta = None        # boundary layer thickness
 
         # Extract x and y coordinates of nodes as complex numbers - we're assuming that the inlet plane is parallel with the x,y plane
         self.coords = nodes[:,0] + 1j * nodes[:,1]
@@ -275,61 +278,70 @@ class FlowField:
         return velComp
 
 
-    def makeBoundaryLayer(self, ref_len, kappa=0.4, B=4.81):
+    def makeBoundaryLayer(self, ref_len, kappa=0.384, B=4.17):
         '''
         Rough function for imposing a turbulent boundary layer on the flow near the walls
         Only works for circular ducts with origin at the centre
         '''
 
-        # Mean velocity magnitude?
-        velMag = np.linalg.norm(self.velocity, axis=1)
-        u_inf = np.mean(velMag)
+        if self.isCircle:
+            # Mean velocity magnitude?
+            velMag = np.linalg.norm(self.velocity, axis=1)
+            u_inf = np.mean(velMag)
 
-        # Get Reynold's number based on reference length - distance the boundary layer has been developing for
-        Rex = self.rho * u_inf * ref_len / KIN_VISC
+            # Get Reynold's number based on reference length - distance the boundary layer has been developing for
+            Rex = u_inf * ref_len / KIN_VISC
+            print(f'Re = {Rex}')
 
-        # Crudely estimate the BL thickness and skin friction coefficient - from BL theory
-        delta = ref_len * 0.38 * Rex**(-0.2)
-        cf = 0.059 * Rex**(-0.2)
+            # Crudely estimate the BL thickness and skin friction coefficient - from BL theory
+            self.bl_delta = ref_len * 0.38 * Rex**(-0.2)
+            cf = 0.059 * Rex**(-0.2)
 
-        # Get friction velocity from skin friction coefficient
-        u_tau = np.sqrt(0.5*cf*u_inf*u_inf)
+            # Get friction velocity from skin friction coefficient
+            u_tau = np.sqrt(0.5*cf*u_inf*u_inf)
 
-        # Get distance of each node from the wall
-        y = np.max(self.coords_polar.real) - self.coords_polar.real
+            # Get distance of each node from the wall
+            y = np.max(self.coords_polar.real) - self.coords_polar.real
 
-        # Get yplus
-        yplus = self.rho * u_tau * y / KIN_VISC
+            # Get yplus
+            yplus = self.rho * u_tau * y / KIN_VISC
 
-        # Calc non-dimensional parameters
-        R = self.rho * u_tau * delta / KIN_VISC
-        u_inf_plus = u_inf / u_tau
+            # Calc non-dimensional parameters
+            R = self.rho * u_tau * self.bl_delta / KIN_VISC
+            u_inf_plus = u_inf / u_tau
 
-        # Eta in terms of y plus
-        eta = yplus / R
+            # Eta in terms of y plus
+            eta = yplus / R
 
-        # Wake parameter
-        Pi = 0.5 * kappa * (u_inf_plus - (1/kappa) * np.log(R) - B)
+            # Wake parameter
+            Pi = 0.5 * kappa * (u_inf_plus - (1/kappa) * np.log(R) - B)
+            
+            # Set inner region profile with Reichardt formulation of law of the wall
+            temp = yplus
+            temp[temp > R] = R
+            uplus1 = (1/kappa) * np.log(1 + kappa * temp) + 7.1 * (1 - np.exp(-temp/12))
+            
+            # Set the outer region's velocity defect law profile with Finlay formulation
+            temp = eta
+            temp[eta > 1] = 1
+            uplus2 = (1/kappa) * Pi * (((1/Pi) + 6) * temp**2 - ((1/Pi) + 4) * temp**3)
+
+            # Get full non-dimensional output profile
+            uplus = uplus1 + uplus2
+            # Redimensionalise - this is the adjusted velocity magnitude
+            u = uplus * u_tau
+
+            # Distribute the velocity magnitude into the components at the same proportions as before the BL correction
+            flowDirection = self.velocity / np.column_stack((velMag,velMag,velMag))
+
+            self.velocity = np.reshape(u,[u.size,1]) * flowDirection
+
         
-        # Set inner region profile with Reichardt formulation of law of the wall
-        temp = yplus
-        temp[temp > R] = R
-        uplus1 = (1/kappa) * np.log(1 + kappa * temp) + 7.1 * (1 - np.exp(-temp/12))
-        
-        # Set the outer region's velocity defect law profile with Finlay formulation
-        temp = eta
-        temp[eta > 1] = 1
-        uplus2 = (1/kappa) * Pi * (((1/Pi) + 6) * temp**2 - ((1/Pi) + 4) * temp**3)
+        else:
+            # Warn that boundary layer from no-slip in non-circular inlets will not be modelled
+            import warnings
 
-        # Get full non-dimensional output profile
-        uplus = uplus1 + uplus2
-        # Redimensionalise - this is the adjusted velocity magnitude
-        u = uplus * u_tau
-
-        # Distribute the velocity magnitude into the components at the same proportions as before the BL correction
-        flowDirection = self.velocity / np.column_stack((velMag,velMag,velMag))
-
-        self.velocity = np.reshape(u,[u.size,1]) * flowDirection
+            warnings.warn("No-slip condition boundary layer for non-circular inlets have not been implemented")
 
     
     def __isoVortex__(self, vortData):
