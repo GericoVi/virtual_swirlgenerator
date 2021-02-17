@@ -18,9 +18,11 @@ class Contour:
     - cmap - a colourmap can be given instead of extracting it from the image, an array list of RGB values of shape (n,3)
     - sampleDist - parameters for controlling the resolution at which to sample the contour plot, [number of radial rings, angular resolution]
     - showSegmentation - for debugging - if true, shows the bounding circle/box found overlayed onto a greyscale version of the input image
+    - param1 - Upper threshold of internal canny edge detector for finding plot with Hough Circle algorithm and finding colour bar
+    - param2 - Threshold for center detection in Hough Circle algorithm
     '''
     
-    def __init__(self, imgFile, range, cmap=None, sampleDist=[10,15], showSegmentation=False):
+    def __init__(self, imgFile, range, cmap=None, sampleDist=[10,15], showSegmentation=False, param1=200, param2=50):
         # Check file existance
         if not os.path.exists(imgFile):
             raise FileNotFoundError(f'{imgFile} not found')
@@ -45,6 +47,10 @@ class Contour:
 
         # Flag for showing 
         self.showSegmentation = showSegmentation
+
+        # Image processing parameters
+        self.param1 = param1
+        self.param2 = param2
 
         # Set defaults for sampling distribution again - in case it gets passed None values
         self.sampleDist = sampleDist
@@ -181,7 +187,7 @@ class Contour:
         rows = grey.shape[1]
 
         # Get circle - tends to return the largest circle around plot with these parameters
-        circles = cv2.HoughCircles(grey, cv2.HOUGH_GRADIENT, 1, rows/8, param1=200, param2=30, minRadius=int(rows/4), maxRadius=int(rows/2))
+        circles = cv2.HoughCircles(grey, cv2.HOUGH_GRADIENT, 1, rows/8, param1=self.param1, param2=self.param2, minRadius=int(rows/4), maxRadius=int(rows/2))
         # for x,y,r in circles[0]:
         #     x,y,r = int(x), int(y), int(r)
         #     cv2.circle(drawing, (x,y), r, (0,255,0), 1)
