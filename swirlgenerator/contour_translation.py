@@ -154,7 +154,7 @@ class Contour:
             colourbar_box = None
 
         # Find the bounding circle for the plot
-        plot_circle = self.__findPlot__(drawing=img)
+        plot_circle = self.__findPlot__(img_grey, drawing=img)
 
         # Show segmented image
         if self.showSegmentation:
@@ -173,21 +173,19 @@ class Contour:
             plt.figure(), plt.imshow(cv2.cvtColor(img,cv2.COLOR_BGR2RGB))
 
 
-    def __findPlot__(self, drawing=None):
+    def __findPlot__(self, greyscale, drawing=None):
         '''
         Finds the bounding circle of the contour plot within the image and returns its centre and radius
         - Internal function, should not be used outside Contours class
+        - greyscale - single channel image
         - drawing - 3 channel array to draw the bounding circle to, won't draw if none
         - Outputs tuple - ([centre_x, centre_y], radius)
         '''
 
-        # Pre-processing
-        grey = cv2.cvtColor(self.imgArray, cv2.COLOR_BGR2GRAY)
-
-        rows = grey.shape[1]
+        rows = greyscale.shape[1]
 
         # Get circle - tends to return the largest circle around plot with these parameters
-        circles = cv2.HoughCircles(grey, cv2.HOUGH_GRADIENT, 1, rows/8, param1=self.param1, param2=self.param2, minRadius=int(rows/4), maxRadius=int(rows/2))
+        circles = cv2.HoughCircles(greyscale, cv2.HOUGH_GRADIENT, 1, rows/8, param1=self.param1, param2=self.param2, minRadius=int(rows/4), maxRadius=int(rows/2))
         # for x,y,r in circles[0]:
         #     x,y,r = int(x), int(y), int(r)
         #     cv2.circle(drawing, (x,y), r, (0,255,0), 1)
