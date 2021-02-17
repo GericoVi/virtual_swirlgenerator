@@ -20,9 +20,10 @@ class Contour:
     - showSegmentation - for debugging - if true, shows the bounding circle/box found overlayed onto a greyscale version of the input image
     - param1 - Upper threshold of internal canny edge detector for finding plot with Hough Circle algorithm and finding colour bar
     - param2 - Threshold for center detection in Hough Circle algorithm
+    - minLevels - Minimum number of unique RGB values in the list to stop searching for the colour map within the image
     '''
     
-    def __init__(self, imgFile, range, cmap=None, sampleDist=[10,15], showSegmentation=False, param1=200, param2=50):
+    def __init__(self, imgFile, range, cmap=None, sampleDist=[10,15], showSegmentation=False, param1=200, param2=50, minLevels=10):
         # Check file existance
         if not os.path.exists(imgFile):
             raise FileNotFoundError(f'{imgFile} not found')
@@ -51,6 +52,7 @@ class Contour:
         # Image processing parameters
         self.param1 = param1
         self.param2 = param2
+        self.minLevels = minLevels
 
         # Set defaults for sampling distribution again - in case it gets passed None values
         self.sampleDist = sampleDist
@@ -70,10 +72,6 @@ class Contour:
         if self.error == 0:
             # Get the pixels within the plot and their coords in terms of the inlet dimensions
             self.getPlotPixels()
-
-            if cmap is None:
-                # Extract the colourmap associated to this plot from the image if needed
-                self.__getCmap__()
 
             # Get points for sampling the contour plot
             self.samples = Contour.samplePoints(self.sampleDist[0],self.sampleDist[1],self.boundaries[0][1])
@@ -217,7 +215,7 @@ class Contour:
         - Internal function, should not be used outside Contours class
         - drawing - 3 channel array to draw the bounding circle to, won't draw if none
         - Outputs tuple - (top_left_x, top_left_y, width, height)
-        - Assumes that the colour bar is below the contour plot, in the lower third of the image
+        - Assumes that the colour bar is in the outer quarters of the image
         '''
 
         possible_contours = []
@@ -245,6 +243,19 @@ class Contour:
             # Get actual bounding box from list
             boundingbox = rectangles[bounding_idx]
 
+            # Goes through all the bounding boxes within the processed image. If we run out of bounding boxes, error is passed to top level.
+            while True:
+                # Try and find the colourmap in this bounding box
+                found = self.__getCmap__(boundingbox)
+
+                if found:
+                    break
+                else:
+                    # If a suitable colourmap was not found within this bounding box, check the next largest one
+                    rectangles = np.delete(rectangles, bounding_idx)
+                    bounding_idx = np.argmax([rectangle[2]*rectangle[3] for rectangle in rectangles])
+                    boundingbox = rectangles[bounding_idx]
+
             # Draw on image if it was given - does not need to be outputted since image is passed by reference
             if drawing is not None:
                 cv2.rectangle(drawing, (int(boundingbox[0]), int(boundingbox[1])), (int(boundingbox[0]+boundingbox[2]), int(boundingbox[1]+boundingbox[3])), (255,0,0),2)
@@ -257,39 +268,51 @@ class Contour:
             return None
 
 
-    def __getCmap__(self):
+    def __getCmap__(self, boundingbox):
         '''
-        Extracts the RGB values of the levels within the colourbar
+        Extracts the RGB values of the levels within the colourbar. Checks the middle and the outer halfs of the bounding box to increase likelihood of finding the colourmap.
         - Internal function, should not be used outside Contours class
+
         - Sets the self.cmap attribute
         '''
 
-        boundingbox = self.boundaries[1]
+        found = False
 
-        # Check if colour bar is horizontal or vertical and extract list of rgb levels based on this
-        if boundingbox[2] > boundingbox[3]:
-            # Coordinates of start and end of colour bar - sampling at a point on the lower third of the box, less sensitivity to inaccuracies in bounding box
-            colourbar_start = [boundingbox[0], boundingbox[1]+2*int(boundingbox[3]/3)]
-            colourbar_end   = [boundingbox[0]+boundingbox[2], boundingbox[1]+2*int(boundingbox[3])]
+        # Check the outer thirds of the boundaing box where a clear sample of the colourmap will likely be
+        positions = [1/3, 2/3]
 
-            # Get list of RGB values for colourmap - by getting the pixels in the colourbar, truncate start an end to leave out the black boundary
-            # Depending on the accuracy of the opencv bounding box, this colourmap could be only an approximation of the actual range
-            colourbar = self.imgArray[colourbar_start[1],colourbar_start[0]+2:colourbar_end[0]-2, :]
-        else:
-            # Coordinates of start and end of colour bar - sampling at a point on the left third of the box, less sensitivity to inaccuracies in bounding box
-            # Also, flipped compared to above since opencv y axis is positive downwards
-            colourbar_start   = [boundingbox[0]+int(boundingbox[2]/3), boundingbox[1]+boundingbox[3]]
-            colourbar_end = [boundingbox[0]+int(boundingbox[2]/3), boundingbox[1]]
+        for position in positions:
+            # Check if colour bar is horizontal or vertical and extract list of rgb levels based on this
+            if boundingbox[2] > boundingbox[3]:
+                # Coordinates of start and end of colour bar
+                colourbar_start = [boundingbox[0], boundingbox[1]+int(boundingbox[3]*position)]
+                colourbar_end   = [boundingbox[0]+boundingbox[2], boundingbox[1]+int(boundingbox[3]*position)]
 
-            # Get list of RGB values for colourmap - by getting the pixels in the colourbar, truncate start an end to leave out the black boundary
-            # Depending on the accuracy of the opencv bounding box, this colourmap could be only an approximation of the actual range
-            colourbar = self.imgArray[colourbar_start[1]+2:colourbar_end[1]-2:-1,colourbar_start[0], :]
+                # Get list of RGB values for colourmap - by getting the pixels in the colourbar, truncate start an end to leave out the black boundary
+                # Depending on the accuracy of the opencv bounding box, this colourmap could be only an approximation of the actual range
+                colourbar = self.imgArray[colourbar_start[1],colourbar_start[0]+2:colourbar_end[0]-2, :]
+            else:
+                # Coordinates of start and end of colour bar
+                # Also, flipped compared to above since opencv y axis is positive downwards
+                colourbar_start   = [boundingbox[0]+int(boundingbox[2]*position), boundingbox[1]+boundingbox[3]]
+                colourbar_end = [boundingbox[0]+int(boundingbox[2]*position), boundingbox[1]]
+
+                # Get list of RGB values for colourmap - by getting the pixels in the colourbar, truncate start an end to leave out the black boundary
+                # Depending on the accuracy of the opencv bounding box, this colourmap could be only an approximation of the actual range
+                colourbar = self.imgArray[colourbar_start[1]+2:colourbar_end[1]-2:-1,colourbar_start[0], :]
+
+            # Check if we have actually sampled the colour map by checking if there is a minimum number of unique RGB values
+            if np.shape(np.unique(colourbar, axis=0))[0] > self.minLevels:
+                found = True
+                break
 
         # Normalise RGB values
         cmap = colourbar / 255
 
         # Transform to RGB
         self.cmap = np.column_stack([cmap[:,2],cmap[:,1],cmap[:,0]])
+
+        return found
 
 
     def getPlotPixels(self):
