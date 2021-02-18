@@ -13,18 +13,14 @@ from scipy.interpolate import griddata
 class Contour:
     '''
     Class for processing images conatining the flow angles as contour plots
-    - imgFile - PNG image file containing the contour plot to translate
-    - range - [min, max] values which correspond to the colorbar range of the contour plot
-    - cmap - a colourmap can be given instead of extracting it from the image, an array list of RGB values of shape (n,3)
-    - sampleDist - parameters for controlling the resolution at which to sample the contour plot, [number of radial rings, angular resolution]
-    - showSegmentation - for debugging - if true, shows the bounding circle/box found overlayed onto a greyscale version of the input image
-    - param1 - Upper threshold of internal canny edge detector for finding plot with Hough Circle algorithm and finding colour bar
-    - param2 - Threshold for center detection in Hough Circle algorithm
-    - minLevels - Minimum number of unique RGB values in the list to stop searching for the colour map within the image
-    - shrinkPlot - Number of times we can try to reduce the plot size - relevant to the __shrinkPlot__() function
+    - imgFile           - PNG image file containing the contour plot to translate
+    - range             - [min, max] values which correspond to the colorbar range of the contour plot
+    - doTranslation     - by default, the contour plot image will be translated on initialisation with default parameters, this can stop it for greater user control
+    - cmap              - a colourmap can be given instead of extracting it from the image, an array list of RGB values of shape (n,3)
+    - showSegmentation  - for debugging - if true, shows the bounding circle/box found overlayed onto a greyscale version of the input image
     '''
     
-    def __init__(self, imgFile, range, cmap=None, sampleDist=[10,15], showSegmentation=False, param1=200, param2=75, minLevels=10, shrinkPlot=10):
+    def __init__(self, imgFile, range, doTranslation=True, cmap=None, showSegmentation=False):
         # Check file existance
         if not os.path.exists(imgFile):
             raise FileNotFoundError(f'{imgFile} not found')
@@ -47,24 +43,36 @@ class Contour:
         self.error = 0                              # Error flag
         self.error_message = None                   # Corresponding error message
 
-        # Flag for showing 
+        # Flag for showing segmented image
         self.showSegmentation = showSegmentation
 
         # Image processing parameters
-        self.param1 = param1
-        self.param2 = param2
-        self.minLevels = minLevels
+        self.circleParams = None
+        self.minLevels = None
 
-        # Set defaults for sampling distribution again - in case it gets passed None values
-        self.sampleDist = sampleDist
-        self.sampleDist[0] = (10 if self.sampleDist[0] is None else self.sampleDist[0])
-        self.sampleDist[1] = (15 if self.sampleDist[1] is None else self.sampleDist[1])
-
-        '''
-        Do contour translation workflow on initialisation
-        '''
         # If a colourmap has been provided already, we don't need to look for the colour bar in the image
         getColourbar = (True if cmap is None else False)
+
+        '''
+        Do contour translation workflow on initialisation with default values
+        '''
+        if doTranslation:
+            self.translateContourPlot(getColourbar=getColourbar)
+
+
+    def translateContourPlot(self, getColourbar=True, sampleDist=[10,15], circleParams=(200,75), minLevels=10, shrinkPlotMax=10):
+        '''
+        Wrapper function for translating a contour plot image after initialisation
+        - getColourbar      - flag for extracting the colourbar or not from the image
+        - sampleDist        - parameters for controlling the resolution at which to sample the contour plot, [number of radial rings, angular resolution]
+        - circleParams      - two parameters which control the Hough circle algorithm function from openCV2 - https://docs.opencv.org/3.4/dd/d1a/group__imgproc__feature.html#ga47849c3be0d0406ad3ca45db65a25d2d
+        - minLevels         - Minimum number of unique RGB values in the list to stop searching for the colour map within the image
+        - shrinkPlotMax     - Number of times we can try to reduce the plot size - relevant to the __shrinkPlot__() function
+        '''
+
+        # Set the necessary attributes using the inputs
+        self.circleParams = circleParams
+        self.minLevels = minLevels
 
         # Get the bounding circle/box of the contour plot and colour bar
         self.segmentImage(getColourbar)
@@ -76,20 +84,20 @@ class Contour:
             self.getPixels()
 
             # Adjust the plot radius by checking if the edge pixels have colours within the stored colourmap
-            if shrinkPlot > 0:
-                self.__shrinkPlot__(shrinkPlot)
+            if shrinkPlotMax > 0:
+                self.shrinkPlot(shrinkPlotMax)
 
             # Get points for sampling the contour plot
-            self.samples = Contour.samplePoints(self.sampleDist[0],self.sampleDist[1],self.boundaries[0][1])
+            self.samples = Contour.samplePoints(sampleDist[0],sampleDist[1],self.boundaries[0][1])
 
             # Get values at sample points
-            self.__getValues__()
+            self.getValues()
         
         else:
             if self.error == 1:
-                self.error_message = f'Suitable plot area not found in {imgFile}'
+                self.error_message = f'Suitable plot area not found'
             elif self.error == 2:
-                self.error_message = f'Suitable colour bar not found in {imgFile}'
+                self.error_message = f'Suitable colour bar not found'
 
 
     @staticmethod
@@ -189,7 +197,7 @@ class Contour:
         rows = greyscale.shape[1]
 
         # Get circle - tends to return the largest circle around plot with these parameters
-        circles = cv2.HoughCircles(greyscale, cv2.HOUGH_GRADIENT, 1, rows/8, param1=self.param1, param2=self.param2, minRadius=int(rows/4), maxRadius=int(rows/2))
+        circles = cv2.HoughCircles(greyscale, cv2.HOUGH_GRADIENT, 1, rows/8, param1=self.circleParams[0], param2=self.circleParams[1], minRadius=int(rows/4), maxRadius=int(rows/2))
         # for x,y,r in circles[0]:
         #     x,y,r = int(x), int(y), int(r)
         #     cv2.circle(drawing, (x,y), r, (0,255,0), 1)
@@ -386,7 +394,7 @@ class Contour:
         return values
 
 
-    def __getValues__(self):
+    def getValues(self):
         '''
         Gets the numerical values associated with the contour plot at the sample points
         - Sets the self.values attribute
@@ -427,7 +435,7 @@ class Contour:
         self.values = np.array((levels*(self.range[1]-self.range[0]) + self.range[0]), dtype=float)
 
 
-    def __shrinkPlot__(self, numShrinks):
+    def shrinkPlot(self, numShrinks):
         '''
         Reduces the stored plot radius to try and 'crop' out the border or other artifacts which are not relevant to the contour plot.
         By checking the edge pixels to see if over half of them have RGB values which are within the stored colourmap
