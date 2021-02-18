@@ -237,6 +237,10 @@ class Plots:
         else:
             (minVal, maxVal) = np.nanmin(values), np.nanmax(values)
 
+        # Protection for uniform contour plots
+        if maxVal-minVal < 1:
+                minVal = 0
+
         # Make ticks for colormap
         ticks = np.linspace(minVal,maxVal,numTicks)
         # Make colormap levels
