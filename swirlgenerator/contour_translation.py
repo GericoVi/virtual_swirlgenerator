@@ -426,3 +426,65 @@ class Contour:
         # Map these levels to the actual value range and output
         self.values = np.array((levels*(self.range[1]-self.range[0]) + self.range[0]), dtype=float)
 
+
+    def __shrinkPlot__(self, numShrinks):
+        '''
+        Reduces the stored plot radius to try and 'crop' out the border or other artifacts which are not relevant to the contour plot.
+        By checking the edge pixels to see if over half of them have RGB values which are within the stored colourmap
+        - numShrinks - maximum number of times to try and shrink the plot area to crop out borders etc before giving up
+        '''
+
+        # Extract the arrays from the tuple
+        pixelCoords = self.pixels[0][:,0]
+        pixelBGRs = self.pixels[1]
+
+        # Transform colour map to BGR, to match the pixel values read by opencv
+        cmap = np.column_stack([self.cmap[:,2],self.cmap[:,1],self.cmap[:,0]])
+
+        # Get current plot radius
+        radius = self.boundaries[0][1]
+
+        for n in range(numShrinks):
+
+            # Make edge sample points with 10 degrees between them
+            angles = np.deg2rad(np.linspace(-180,180,36, endpoint=False))
+
+            # Make coords
+            coords_polar = np.column_stack([[radius]*36 , angles])
+            coords = (coords_polar[:,0] * np.cos(coords_polar[:,1])) + 1j * (coords_polar[:,0] * np.sin(coords_polar[:,1]))
+
+            tol = np.empty(np.shape(coords))
+
+            for i,sample in enumerate(coords):
+                # Get index of pixel at this sample point
+                closest_idx = np.argmin(np.abs(pixelCoords - sample))
+
+                # Get BGR for this pixel
+                BGR = pixelBGRs[closest_idx]
+
+                # Get closest distance from a colour map level and append to list
+                tol[i] = np.min(np.linalg.norm((cmap - BGR), axis=1))
+
+            # If the pixel colour is within the colourmap, its minimum distance tends to be less than 0.1
+            # If more than 90% of the samples have a value higher than this, assume we are sampling outside the actual contour plot and reduce the radius
+            tol = tol >= 0.05
+
+            if np.sum(tol) > np.size(tol)*0.25:
+                radius = radius - 1
+            else:
+                break
+
+        print(f'Shrinked {n} times')
+
+        # Replace tuple - since can't do item assignment
+        centre = self.boundaries[0][0]
+        box = self.boundaries[1]
+        self.boundaries = ((centre,radius),box)
+
+        output = self.imgArray
+        cv2.circle(output, (centre[0],centre[1]), radius, (0,255,0), 1)
+
+        from matplotlib import pyplot as plt
+        plt.figure(), plt.imshow(cv2.cvtColor(output,cv2.COLOR_BGR2RGB))
+
+
