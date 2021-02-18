@@ -291,7 +291,7 @@ class FlowField:
 
             # Get Reynold's number based on reference length - distance the boundary layer has been developing for
             Rex = u_inf * ref_len / KIN_VISC
-            print(f'Re = {Rex}')
+            #print(f'Re = {Rex}')
 
             # Crudely estimate the BL thickness and skin friction coefficient - from BL theory
             self.bl_delta = ref_len * 0.38 * Rex**(-0.2)
@@ -335,6 +335,8 @@ class FlowField:
             flowDirection = self.velocity / np.column_stack((velMag,velMag,velMag))
 
             self.velocity = np.reshape(u,[u.size,1]) * flowDirection
+
+            return uplus
 
         
         else:
@@ -533,17 +535,21 @@ class FlowField:
         return RMSE
 
     
-    def save(self, outputFile):
+    def save(self, outputFile, saveCoords=False):
         '''
         Wrapper function for saving the flow field in a format which can be loaded by core.load() later
         - outputFile - without file extension
         - so calling script does not need to import numpy just for this
         '''
 
-        np.savez(outputFile, velocity=self.velocity, rho=self.rho, pressure=self.pressure, swirl=self.swirlAngle, radialangle=self.radialAngle)
+        if not saveCoords:
+            np.savez(outputFile, velocity=self.velocity, rho=self.rho, pressure=self.pressure, swirl=self.swirlAngle, radialangle=self.radialAngle)
+        else:
+            coords = np.column_stack([self.coords.real, self.coords.imag, self.zCoord])
+            np.savez(outputFile, velocity=self.velocity, rho=self.rho, pressure=self.pressure, swirl=self.swirlAngle, radialangle=self.radialAngle, nodes=coords)
 
 
-    def load(self, file):
+    def load(self, file, loadCoords=False):
         '''
         Unpacks zipped archive file created by save() and returns the numpy arrays in the familiar format
         '''
@@ -559,6 +565,14 @@ class FlowField:
             self.swirlAngle  = npzfile['swirl']
         else:
             raise RuntimeError('File format/contents invalid - make sure this file was created by swirlGenerator.saveFigsToPdf')
+
+        # Check if the nodes were saved and needs to be loaded
+        if loadCoords:
+            if 'nodes' in npzfile:
+                self.coords = npzfile['nodes'][:,0] + 1j * npzfile['nodes'][:,1]
+                self.zCoord = npzfile['nodes'][:,2]
+            else:
+                raise RuntimeError('loadCoords requested but specified file does not contain node coordinates')
 
         # Older saved data does not have this
         if ('radialangle' in npzfile):
