@@ -60,11 +60,12 @@ class Contour:
             self.translateContourPlot(getColourbar=getColourbar)
 
 
-    def translateContourPlot(self, getColourbar=True, sampleDist=[10,15], circleParams=(200,75), minLevels=10, shrinkPlotMax=10):
+    def translateContourPlot(self, getColourbar=True, samplingMode=1, samplingParams=(10), circleParams=(200,75), minLevels=10, shrinkPlotMax=10):
         '''
         Wrapper function for translating a contour plot image after initialisation
         - getColourbar      - flag for extracting the colourbar or not from the image
-        - sampleDist        - parameters for controlling the resolution at which to sample the contour plot, [number of radial rings, angular resolution]
+        - samplingMode      - sampling distribution mode to be used - details in samplePoints() function
+        - samplingParams    - parameters for controlling the distribution of sampling points - details in samplePoints() function
         - circleParams      - two parameters which control the Hough circle algorithm function from openCV2 - https://docs.opencv.org/3.4/dd/d1a/group__imgproc__feature.html#ga47849c3be0d0406ad3ca45db65a25d2d
         - minLevels         - Minimum number of unique RGB values in the list to stop searching for the colour map within the image
         - shrinkPlotMax     - Number of times we can try to reduce the plot size - relevant to the __shrinkPlot__() function
@@ -88,7 +89,7 @@ class Contour:
                 self.shrinkPlot(shrinkPlotMax)
 
             # Get points for sampling the contour plot
-            self.samples = Contour.samplePoints(sampleDist[0],sampleDist[1],self.boundaries[0][1])
+            self.samples = Contour.samplePoints(samplingMode, samplingParams,self.boundaries[0][1])
 
             # Get values at sample points
             self.getValues()
@@ -101,38 +102,91 @@ class Contour:
 
 
     @staticmethod
-    def samplePoints(numRings, angleRes, plotRadius):
+    def samplePoints(mode, params, plotRadius):
         '''
         Generates a distribution of sample points to query the contour plot
-        - numRings - number of radial positions to sample
-        - angleRes - angular resolution we want to sample at, number of circumferential points will be calculated from this
-        - plotRadius - radius of contour plot within the image, in pixels
+        - mode          - sampling distribution mode to be used
+                        - 1 - equidistant points
+                        - 2 - constant angular resolution
+                        - 3 - using nodes from an outside mesh
+        - params        - tuple containing the parameters needed to define the distribution of the sample points, depends on mode
+                        - mode 1 - (number of radial rings)
+                        - mode 2 - (number of radial rings, angular resolution in degrees)
+                        - mode 3 - ([list of complex coordinates of nodes])
+        - numRings      - number of radial positions to sample
+        - angleRes      - angular resolution we want to sample at, number of circumferential points will be calculated from this
+        - plotRadius    - radius of contour plot within the image, in pixels
         - Outputs list of sample point coordinates [complex cartesian]
         - Static method since this could be useful outside the class
         '''
 
-        # Get number of circumferential points from input angular resolution
-        numAngles = int(np.ceil(360/angleRes))
+        # Equidistant points, controlled by number of rings - algorithm adapted from http://www.holoborodko.com/pavel/2015/07/23/generating-equidistant-points-on-unit-disk/
+        if mode == 1:
+            # Extract parameters from input tuple
+            numRings = params
 
-        # Make polar axis list
-        radii = np.linspace(0,plotRadius,numRings+1,endpoint=True)        
-        angles = np.linspace(-180,180,numAngles,endpoint=False)     # We don't need another point at 360, already have one there (0 degrees)
+            # Distance between rings
+            dR = plotRadius/numRings
 
-        # Convert to radians
-        angles = np.deg2rad(angles)
+            # Initialise list of list of coordinates of points on each ring
+            coords_list = [None]*numRings
 
-        # Remove the 0 radial position - added again later, so we don't have multiple points at the centre
-        radii = radii[1:]
+            # Place points on concentric circles with (almost) equal arc length between them
+            for k,r in enumerate(np.arange(dR,plotRadius+dR,dR), 1):
+                # Number of points needed
+                n = int(np.round( np.pi / np.arcsin(1/(2*k)) ))
 
-        # Make grid of coords
-        R, Theta = np.meshgrid(radii,angles,indexing='ij')
+                # Angular position of points
+                angles = np.linspace(0, 2*np.pi, n+1)
 
-        # Flatten into list and add the point at the centre
-        coords_polar = np.column_stack([R.flatten(), Theta.flatten()])
-        coords_polar = np.concatenate([[[0,0]], coords_polar])
+                # Make list of polar coordinate pairs
+                coords_polar = np.column_stack([[r]*len(angles) , angles])
 
-        # Transform to complex cartesian coords - easier Euclidean distance calculations later
-        coords = (coords_polar[:,0] * np.cos(coords_polar[:,1])) + 1j * (coords_polar[:,0] * np.sin(coords_polar[:,1]))
+                # Add to list of cartesian coords
+                coords_list[k-1] = (coords_polar[:,0] * np.cos(coords_polar[:,1])) + 1j * (coords_polar[:,0] * np.sin(coords_polar[:,1]))
+
+            # Merge into one list, and add point in the centre
+            coords = np.concatenate(coords_list)
+            coords = np.concatenate([coords, [0+1j*0]])
+
+        # Constant angluar displacement between points across the rings
+        elif mode == 2:
+            # Extract parameters from input tuple
+            numRings, angleRes = params
+
+            # Get number of circumferential points from input angular resolution
+            numAngles = int(np.ceil(360/angleRes))
+
+            # Make polar axis list
+            radii = np.linspace(0,plotRadius,numRings+1,endpoint=True)        
+            angles = np.linspace(-180,180,numAngles,endpoint=False)     # We don't need another point at 360, already have one there (0 degrees)
+
+            # Convert to radians
+            angles = np.deg2rad(angles)
+
+            # Remove the 0 radial position - added again later, so we don't have multiple points at the centre
+            radii = radii[1:]
+
+            # Make grid of coords
+            R, Theta = np.meshgrid(radii,angles,indexing='ij')
+
+            # Flatten into list and add the point at the centre
+            coords_polar = np.column_stack([R.flatten(), Theta.flatten()])
+            coords_polar = np.concatenate([[[0,0]], coords_polar])
+
+            # Transform to complex cartesian coords - easier Euclidean distance calculations later
+            coords = (coords_polar[:,0] * np.cos(coords_polar[:,1])) + 1j * (coords_polar[:,0] * np.sin(coords_polar[:,1]))
+
+        # Sample point distribution received as input
+        elif mode == 3:
+            # Extract node locations from input tuple
+            coords = params
+
+            # Assuming that there are nodes at the boundary of the circle, get radius
+            radius = np.max(np.abs(coords))
+
+            # Normalise and map to pixel coordinates
+            coords = (coords/radius)*plotRadius
 
         return coords
 
