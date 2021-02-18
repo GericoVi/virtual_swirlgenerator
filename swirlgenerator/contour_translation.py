@@ -21,9 +21,10 @@ class Contour:
     - param1 - Upper threshold of internal canny edge detector for finding plot with Hough Circle algorithm and finding colour bar
     - param2 - Threshold for center detection in Hough Circle algorithm
     - minLevels - Minimum number of unique RGB values in the list to stop searching for the colour map within the image
+    - shrinkPlot - Number of times we can try to reduce the plot size - relevant to the __shrinkPlot__() function
     '''
     
-    def __init__(self, imgFile, range, cmap=None, sampleDist=[10,15], showSegmentation=False, param1=200, param2=50, minLevels=10):
+    def __init__(self, imgFile, range, cmap=None, sampleDist=[10,15], showSegmentation=False, param1=200, param2=75, minLevels=10, shrinkPlot=10):
         # Check file existance
         if not os.path.exists(imgFile):
             raise FileNotFoundError(f'{imgFile} not found')
@@ -41,7 +42,7 @@ class Contour:
         self.values = None                          # Values extracted from contour plot
         self.contours = None                        # Edges within image as contours (binary image array)
         self.boundaries = None                      # ( (centre_xy,radius), (top_left_x, top_left_y, width, height) ), of bounding circles/boxes
-        self.plotPixels = None                      # [[complex coords], [B,G,R]] - stores the BGR 'vectors' of each pixel and their corresponding coordinates (mapped to actual inlet dimensions)
+        self.pixels = None                          # [[complex coords], [B,G,R]] - stores the BGR 'vectors' of each pixel and their corresponding coordinates relative to an origin coincident with the centre of the contour plot
         self.debug_fig = None                       # Placeholder attribute - used for storing any debugging related figures
         self.error = 0                              # Error flag
         self.error_message = None                   # Corresponding error message
@@ -70,8 +71,13 @@ class Contour:
 
         # Continue if image segmentation was successful
         if self.error == 0:
-            # Get the pixels within the plot and their coords in terms of the inlet dimensions
-            self.getPlotPixels()
+
+            # Get normalised pixel colours and their coords in terms of an origin coincident with the plot's centre
+            self.getPixels()
+
+            # Adjust the plot radius by checking if the edge pixels have colours within the stored colourmap
+            if shrinkPlot > 0:
+                self.__shrinkPlot__(shrinkPlot)
 
             # Get points for sampling the contour plot
             self.samples = Contour.samplePoints(self.sampleDist[0],self.sampleDist[1],self.boundaries[0][1])
@@ -101,8 +107,8 @@ class Contour:
         numAngles = int(np.ceil(360/angleRes))
 
         # Make polar axis list
-        radii = np.linspace(0,plotRadius,numRings+1,endpoint=False)        # We don't need sample points at the boundary - since contour plots normally have a black border
-        angles = np.linspace(-180,180,numAngles,endpoint=False)    # We don't need another point at 360, already have on there (0 degrees)
+        radii = np.linspace(0,plotRadius,numRings+1,endpoint=True)        
+        angles = np.linspace(-180,180,numAngles,endpoint=False)     # We don't need another point at 360, already have one there (0 degrees)
 
         # Convert to radians
         angles = np.deg2rad(angles)
@@ -315,10 +321,10 @@ class Contour:
         return found
 
 
-    def getPlotPixels(self):
+    def getPixels(self):
         '''
         Extracts the BGR 'vectors' with their corresponding coordinates mapped to the actual inlet dimensions
-        - Sets the self.plotPixels attribute
+        - Sets the self.pixels attribute
         '''
 
         boundingcircle = self.boundaries[0]
@@ -337,25 +343,15 @@ class Contour:
 
         # Form into complex coords - easier euclidean distance calculations
         coords = x + 1j * y
-        
-        # Get indices of pixels in plot
-        plotIdxs = np.abs(coords) <= boundingcircle[1]
-        plotIdxs = plotIdxs[:,0]
-
-        # Get only the pixels in the plot
-        plotPixels = pixels[plotIdxs, :]
 
         # Normalise the BGR values
-        plotPixels = plotPixels/255
-
-        # Get corresponding coords
-        plotCoords = coords[plotIdxs]
+        pixels = pixels/255
 
         # Transform y coordinates - since opencv y axis is positive downwards
-        plotCoords = plotCoords.real + 1j * -plotCoords.imag
+        coords = coords.real + 1j * -coords.imag
 
         # Form tuple and assign to attribute
-        self.plotPixels = ((plotCoords),(plotPixels))
+        self.pixels = ((coords),(pixels))
         
 
     def getValuesAtNodes(self, nodes, interpolation='linear'):
@@ -397,8 +393,15 @@ class Contour:
         '''
 
         # Extract the arrays from the tuple
-        pixelCoords = self.plotPixels[0][:,0]
-        pixelBGRs = self.plotPixels[1]
+        pixelCoords = self.pixels[0][:,0]
+        pixelBGRs = self.pixels[1]
+
+        # Reduce to only the pixels within the plot for less computation
+        radius = self.boundaries[0][1]
+        plotIdxs = np.abs(pixelCoords) <= radius
+       
+        pixelCoords = pixelCoords[plotIdxs]
+        pixelBGRs   = pixelBGRs[plotIdxs, :]
 
         # Transform colour map to BGR, to match the pixel values read by opencv
         cmap = np.column_stack([self.cmap[:,2],self.cmap[:,1],self.cmap[:,0]])
@@ -413,13 +416,13 @@ class Contour:
 
             # Get BGR for this pixel
             BGR = pixelBGRs[closest_idx]
-            #print(BGR)
+
             # Get index of colour closest to this value from the colour map levels, by getting the Euclidean distance in a 3D space where B,G,R are the dimensions
             level_idx = np.argmin(np.linalg.norm((cmap - BGR), axis=1))
 
             # Normalise
             levels[i] = level_idx/cmap.shape[0]
-            
+
         # Map these levels to the actual value range and output
         self.values = np.array((levels*(self.range[1]-self.range[0]) + self.range[0]), dtype=float)
 
