@@ -85,7 +85,7 @@ def main():
 
                 # Show inlet nodes if requested
                 if options.showinletnodes:
-                    plots.showInletNodes()
+                    plots.plotInletNodes()
 
         else:
             print('Exiting...')

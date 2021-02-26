@@ -137,7 +137,7 @@ class Plots:
         Plots.makeContourPlot(self.radialAngle, self.xy, numTicks, title='Radial flow angle', regularPoints=self.xy_i, axisRange=axisRange2, boundaryPoints=self.boundary)
 
 
-    def showInletNodes(self):
+    def plotInletNodes(self, show=True):
         '''
         Utility function for showing the position of the nodes at the inlet mesh
         '''
@@ -147,7 +147,9 @@ class Plots:
         plt.title('Inlet mesh')
         plt.plot(self.boundary[0], self.boundary[1],'k-')
         plt.scatter(self.xy[0],self.xy[1],marker='.')
-        plt.show()
+
+        if show:
+            plt.show()
 
 
     @staticmethod
