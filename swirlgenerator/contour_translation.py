@@ -88,6 +88,19 @@ class Contour:
             if shrinkPlotMax > 0:
                 self.shrinkPlot(shrinkPlotMax)
 
+            # Show final segmented image if requested
+            if self.showSegmentation:
+                # Plot segmentation
+                cv2.circle(self.debug_fig, (self.boundaries[0][0][0],self.boundaries[0][0][1]), self.boundaries[0][1], (0,255,0), 1)
+                
+                # Colourbar segmentation
+                if getColourbar:
+                    cv2.rectangle(self.debug_fig, (int(self.boundaries[1][0]), int(self.boundaries[1][1])), (int(self.boundaries[1][0]+self.boundaries[1][2]), int(self.boundaries[1][1]+self.boundaries[1][3])), (255,0,0),2)
+
+                # Show with matplotlib so we can zoom
+                from matplotlib import pyplot as plt
+                plt.figure(), plt.imshow(cv2.cvtColor(self.debug_fig,cv2.COLOR_BGR2RGB))
+
             # Get points for sampling the contour plot
             self.samples = Contour.samplePoints(samplingMode, samplingParams,self.boundaries[0][1])
 
@@ -202,7 +215,7 @@ class Contour:
         img_grey = cv2.cvtColor(self.imgArray,cv2.COLOR_BGR2GRAY)
 
         # Greyscale image but with 3 channels - so the bounding boxes/circles can be drawn in colour to contrast with original image
-        img = np.dstack([img_grey,img_grey,img_grey])
+        self.debug_fig = np.dstack([img_grey,img_grey,img_grey])
 
         # Get edges as a binary image with the canny algorithm - with these threshold values, the plot and colour bar edges are reliably found while the contour lines within the plot are mostly ignored
         canny_edges = cv2.Canny(img_grey,100,200)
@@ -215,18 +228,12 @@ class Contour:
 
         # Find the bounding rectangle for the colour bar if needed
         if getColourbar:
-            colourbar_box = self.__findColourbar__(drawing=img)
+            colourbar_box = self.__findColourbar__()
         else:
             colourbar_box = None
 
         # Find the bounding circle for the plot
-        plot_circle = self.__findPlot__(img_grey, drawing=img)
-
-        # Show segmented image
-        if self.showSegmentation:
-            # Show with matplotlib so we can zoom
-            from matplotlib import pyplot as plt
-            plt.figure(), plt.imshow(cv2.cvtColor(img,cv2.COLOR_BGR2RGB))
+        plot_circle = self.__findPlot__(img_grey)
 
         # Form tuple and assign to attribute
         self.boundaries = (plot_circle, colourbar_box)
@@ -234,17 +241,16 @@ class Contour:
         if self.error != 0:
             # If error flag, there was no qualifying contours found during one of the checks (either to find the plot or the colourbar)
             # So we will draw the contours, so we can debug
-            cv2.drawContours(img, self.contours, -1, (0,255,0), 1)
+            cv2.drawContours(self.debug_fig, self.contours, -1, (0,255,0), 1)
             from matplotlib import pyplot as plt
-            plt.figure(), plt.imshow(cv2.cvtColor(img,cv2.COLOR_BGR2RGB))
+            plt.figure(), plt.imshow(cv2.cvtColor(self.debug_fig,cv2.COLOR_BGR2RGB))
 
 
-    def __findPlot__(self, greyscale, drawing=None):
+    def __findPlot__(self, greyscale):
         '''
         Finds the bounding circle of the contour plot within the image and returns its centre and radius
         - Internal function, should not be used outside Contours class
         - greyscale - single channel image
-        - drawing - 3 channel array to draw the bounding circle to, won't draw if none
         - Outputs tuple - ([centre_x, centre_y], radius)
         '''
 
@@ -268,8 +274,6 @@ class Contour:
             x,y,r = circle
             x,y,r = int(x), int(y), int(r)
 
-            cv2.circle(drawing, (x,y), r, (0,255,0), 1)
-
             return ([x,y],r)
 
         else:
@@ -277,11 +281,10 @@ class Contour:
             return None
 
 
-    def __findColourbar__(self, drawing=None):
+    def __findColourbar__(self):
         '''
         Finds the bounding rectangle of the colour bar within the image and returns its ____
         - Internal function, should not be used outside Contours class
-        - drawing - 3 channel array to draw the bounding circle to, won't draw if none
         - Outputs tuple - (top_left_x, top_left_y, width, height)
         - Assumes that the colour bar is in the outer quarters of the image
         '''
@@ -323,10 +326,6 @@ class Contour:
                     rectangles = np.delete(rectangles, bounding_idx)
                     bounding_idx = np.argmax([rectangle[2]*rectangle[3] for rectangle in rectangles])
                     boundingbox = rectangles[bounding_idx]
-
-            # Draw on image if it was given - does not need to be outputted since image is passed by reference
-            if drawing is not None:
-                cv2.rectangle(drawing, (int(boundingbox[0]), int(boundingbox[1])), (int(boundingbox[0]+boundingbox[2]), int(boundingbox[1]+boundingbox[3])), (255,0,0),2)
 
             return boundingbox
         
@@ -489,7 +488,7 @@ class Contour:
         self.values = np.array((levels*(self.range[1]-self.range[0]) + self.range[0]), dtype=float)
 
 
-    def shrinkPlot(self, numShrinks):
+    def shrinkPlot(self, numShrinks, ):
         '''
         Reduces the stored plot radius to try and 'crop' out the border or other artifacts which are not relevant to the contour plot.
         By checking the edge pixels to see if over half of them have RGB values which are within the stored colourmap
@@ -506,7 +505,7 @@ class Contour:
         # Get current plot radius
         radius = self.boundaries[0][1]
 
-        for n in range(numShrinks):
+        for _ in range(numShrinks):
 
             # Make edge sample points with 10 degrees between them
             angles = np.deg2rad(np.linspace(-180,180,36, endpoint=False))
@@ -536,17 +535,10 @@ class Contour:
             else:
                 break
 
-        print(f'Shrinked {n} times')
+        #print(f'Shrinked {n} times')
 
         # Replace tuple - since can't do item assignment
         centre = self.boundaries[0][0]
         box = self.boundaries[1]
         self.boundaries = ((centre,radius),box)
-
-        output = self.imgArray
-        cv2.circle(output, (centre[0],centre[1]), radius, (0,255,0), 1)
-
-        from matplotlib import pyplot as plt
-        plt.figure(), plt.imshow(cv2.cvtColor(output,cv2.COLOR_BGR2RGB))
-
 
