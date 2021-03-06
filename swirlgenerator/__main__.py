@@ -24,8 +24,6 @@ def main():
         inputData = options.checkInputs(inputData)
         
         if not options.exit:
-            tangential = None
-
             # Intialise flow field object with coordinate system
             print(f'Extracting inlet nodes from {inputData.meshfilename}...')
             flowfield = sg.FlowField(inputData.getNodes())
@@ -51,6 +49,9 @@ def main():
                 # Calculate velocity field from flow angles mapped to flowfield nodes
                 flowfield.reconstructDomain(tangential.getValuesAtNodes(flowfield.coords), radial.getValuesAtNodes(flowfield.coords), inputData.axialVel)
 
+            # Approximate the no-slip condition boundary layer
+            if options.boundarylayer:
+                flowfield.makeBoundaryLayer(options.ref_length)
 
             # Verify boundary conditions if requested
             if options.checkboundaries:
@@ -107,6 +108,8 @@ class Options:
         self.saveplots          = False
         self.showinletnodes     = False
         self.savenumpy          = False
+        self.boundarylayer      = False
+        self.ref_length         = None
 
         # Options based on the inputs in config file
         self.ctm    = False            # Are we reconstructing the flow field from contour plots or creating from discrete vortices
@@ -122,6 +125,7 @@ class Options:
             print('Options:')
             print('-vm                      Creates flow field from mathematical model and parameters in config file')
             print('-ctm                     Reconstructs flow field from input contour plot images')
+            print('-bl                      Applies a wall function correction to approximate a boundary layer for the no-slip condition')
             print('-checkboundaries         Runs the function which checks if the boundary conditions have been satisfied')
             print('-show                    Shows the plots of the flow fields in separate windows')
             print('-saveplots               Saves the plots into a pdf file with the same name as the config file')
@@ -152,6 +156,18 @@ class Options:
         # Try and use the defined method
         self.vm  = (True if '-vm' in self.arguments else False)
         self.ctm = (True if '-ctm' in self.arguments else False)
+
+        # Approximate the no-slip condition
+        self.boundarylayer = (True if '-bl' in self.arguments else False)
+        if self.boundarylayer:
+            idx = sys.argv.index('-bl')
+            try:
+                if (sys.argv[idx+1].find('-') == 0): raise RuntimeError
+
+                else: self.ref_length = float(sys.argv[idx+1])
+            except:
+                raise RuntimeError('-bl option specified but no reference length given')
+                    
 
         # Check validity of boundary conditions
         self.checkboundaries = (True if '-checkboundaries' in self.arguments else False)
@@ -230,6 +246,11 @@ class Options:
             else:
                 raise RuntimeError(f'\nContour translation method specified but no contour translation section found in {self.configfile}')
         
+        # Boundary layer reference length could have been specified in the config file
+        if inputdata.blRefLen is not None:
+            self.ref_length = inputdata.blRefLen
+            self.boundarylayer = True
+
         # Set defaults
         inputdata.axialVel = (1.0 if inputdata.axialVel is None else inputdata.axialVel)
 

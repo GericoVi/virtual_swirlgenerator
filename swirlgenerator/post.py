@@ -27,11 +27,13 @@ class Plots:
         self.xy = np.vstack([flowfield.coords.real, flowfield.coords.imag])
 
         # Store variables for plotting
-        self.vel            = flowfield.velocity[:,0:2]
+        self.vel            = flowfield.velocity
         self.thermos        = [flowfield.rho, flowfield.pressure]
         self.swirlAngle     = flowfield.swirlAngle
         self.radialAngle    = flowfield.radialAngle
         self.boundary       = np.vstack([flowfield.boundaryCurve.real, flowfield.boundaryCurve.imag])
+        self.bl_delta       = flowfield.bl_delta
+        self.radius         = np.max(flowfield.coords_polar.real)
 
         # Get regularly spaced axis for plotting
         self.xy_i = Plots.makeRegularAxis(self.xy, plotDensity)
@@ -58,7 +60,7 @@ class Plots:
             plt.show()
 
 
-    def plotVelocity(self, arrowDensity=50):
+    def plotVelocity(self, arrowDensity=50, quiver=True, streamlines=True, axial=True, border=True, bl_line=False):
         '''
         Create plots for the swirling velocity profile as a quiver plot and a streamlines plot
         - arrowDensity - Parameter which controls the sub sampling of the velocity field for the quiver plot
@@ -69,30 +71,54 @@ class Plots:
         dim_min = np.min(self.xy,axis=1)
         reduced_x = np.linspace(dim_min[0],dim_max[0],arrowDensity)
         reduced_y = np.linspace(dim_min[1],dim_max[1],arrowDensity)
-        u = griddata((self.xy[0],self.xy[1]), self.vel[:,0], (reduced_x[None,:],reduced_y[:,None]), method='linear')
-        v = griddata((self.xy[0],self.xy[1]), self.vel[:,1], (reduced_x[None,:],reduced_y[:,None]), method='linear')
 
-        # Make quiver plot
-        plt.figure()
-        plt.gca().set_aspect('equal', adjustable='box')
-        plt.title("Quiver")
-        plt.quiver(reduced_x, reduced_y, u, v, units='dots', width=2,headwidth=5,headlength=5,headaxislength=2.5)
-        plt.axis('off')
-        # Draw boundary
-        plt.plot(self.boundary[0], self.boundary[1],'k-')
+        if quiver:
+            u = griddata((self.xy[0],self.xy[1]), self.vel[:,0], (reduced_x[None,:],reduced_y[:,None]), method='linear')
+            v = griddata((self.xy[0],self.xy[1]), self.vel[:,1], (reduced_x[None,:],reduced_y[:,None]), method='linear')
 
-        # Interpolate data to a regularly spaced grid
-        u = griddata((self.xy[0],self.xy[1]), self.vel[:,0], (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='linear')
-        v = griddata((self.xy[0],self.xy[1]), self.vel[:,1], (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='linear')
+            # Make quiver plot
+            plt.figure()
+            plt.gca().set_aspect('equal', adjustable='box')
+            plt.title("Quiver")
+            plt.quiver(reduced_x, reduced_y, u, v, units='dots', width=2,headwidth=5,headlength=5,headaxislength=2.5)
+            plt.axis('off')
+            if border:
+                # Draw boundary
+                plt.plot(self.boundary[0], self.boundary[1],'k-')
 
-        # Make streamlines plot
-        plt.figure()
-        plt.gca().set_aspect('equal', adjustable='box')
-        plt.title("Streamlines")
-        plt.streamplot(self.xy_i[0], self.xy_i[1], u, v, density=2)            # streamplot uses vector axis for xy instead of meshgrid for some reason?
-        plt.axis('off')
-        # Draw boundary
-        plt.plot(self.boundary[0], self.boundary[1],'k-')
+        if streamlines:
+            # Interpolate data to a regularly spaced grid
+            u = griddata((self.xy[0],self.xy[1]), self.vel[:,0], (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='linear')
+            v = griddata((self.xy[0],self.xy[1]), self.vel[:,1], (self.xy_i[0][None,:],self.xy_i[1][:,None]), method='linear')
+
+            # Make streamlines plot
+            plt.figure()
+            plt.gca().set_aspect('equal', adjustable='box')
+            plt.title("Streamlines")
+            plt.streamplot(self.xy_i[0], self.xy_i[1], u, v, density=2)            # streamplot uses vector axis for xy instead of meshgrid for some reason?
+            plt.axis('off')
+            if border:
+                # Draw boundary
+                plt.plot(self.boundary[0], self.boundary[1],'k-')
+
+        if axial:
+            if border:
+                boundary = self.boundary
+            else:
+                boundary = None
+
+            # Make contour plot of streamwise velocity
+            axial_fig = Plots.makeContourPlot(self.vel[:,2], self.xy, 11, title='Axial velocity', regularPoints=self.xy_i, boundaryPoints=boundary, tightRange=True)
+
+            # Add line for boundary layer
+            if bl_line:
+                plt.figure(axial_fig)
+                
+                R, Theta = np.meshgrid([self.radius-self.bl_delta], np.deg2rad(np.linspace(-180,180,360,endpoint=False)), indexing='ij')
+                R, Theta = R.flatten(), Theta.flatten()
+                x, y     = R*np.cos(Theta) , R*np.sin(Theta)
+
+                plt.plot(x, y, 'k-.')
 
 
     def plotThermos(self):
@@ -114,7 +140,7 @@ class Plots:
         plt.colorbar()
 
 
-    def plotSwirl(self, axisRange=[None,None], numTicks = None):
+    def plotSwirl(self, axisRange=[None,None], numTicks = None, border=True):
         '''
         Create contour plot for swirl (tangential flow) angle and radial flow angle
         - axisRange - specify the max and min values for the colormap
@@ -130,11 +156,16 @@ class Plots:
             axisRange1 = axisRange
             axisRange2 = [None,None]
 
+        if border:
+            boundary = self.boundary
+        else:
+            boundary = None
+
         # Make tangential flow angle contour plot
-        Plots.makeContourPlot(self.swirlAngle, self.xy, numTicks, title='Tangential flow (Swirl) angle', regularPoints=self.xy_i, axisRange=axisRange1, boundaryPoints=self.boundary)
+        Plots.makeContourPlot(self.swirlAngle, self.xy, numTicks, title='Tangential flow (Swirl) angle', regularPoints=self.xy_i, axisRange=axisRange1, boundaryPoints=boundary)
 
         # Make radial flow angle contour plot
-        Plots.makeContourPlot(self.radialAngle, self.xy, numTicks, title='Radial flow angle', regularPoints=self.xy_i, axisRange=axisRange2, boundaryPoints=self.boundary)
+        Plots.makeContourPlot(self.radialAngle, self.xy, numTicks, title='Radial flow angle', regularPoints=self.xy_i, axisRange=axisRange2, boundaryPoints=boundary)
 
 
     def showInletNodes(self):
@@ -177,7 +208,7 @@ class Plots:
         return xy_i
 
     @staticmethod
-    def makeContourPlot(values, points, numTicks, title=None, regularPoints=None, axisRange=[None,None], boundaryPoints=None, cmap=None):
+    def makeContourPlot(values, points, numTicks, title=None, regularPoints=None, axisRange=[None,None], boundaryPoints=None, cmap=None, tightRange=False):
         '''
         Creates contour plot figure from 
         - values - values to plot at each point in points
@@ -195,14 +226,20 @@ class Plots:
         else:
             regularPoints = points
 
-        # Make our own reasonable max and min range if not specified
-        if None in axisRange:
-            (minVal, maxVal) = Plots.__getContourRange__(values)
+        # Make our own reasonable max and min range if not specified, or have axis tight against actual max and min values
+        if not tightRange:
+            if None in axisRange:
+                (minVal, maxVal) = Plots.__getContourRange__(values)
+            else:
+                # Make sure the range is increasing
+                axisRange = np.sort(axisRange)
+                minVal, maxVal = axisRange[0:2]
         else:
-            # Make sure the range is increasing
-            axisRange = np.sort(axisRange)
-            minVal = axisRange[0]
-            maxVal = axisRange[1]
+            (minVal, maxVal) = np.nanmin(values), np.nanmax(values)
+
+        # Protection for uniform contour plots
+        if maxVal-minVal < 1:
+                minVal = 0
 
         # Make ticks for colormap
         ticks = np.linspace(minVal,maxVal,numTicks)
@@ -213,7 +250,7 @@ class Plots:
             cmap = 'jet'
 
         # Make contour plot
-        plt.figure()
+        fig = plt.figure()
         plt.gca().set_aspect('equal', adjustable='box')
         plt.title(title)
         plt.contourf(regularPoints[0],regularPoints[1],values,levels=levels,cmap=cmap,vmin=minVal,vmax=maxVal)
@@ -222,6 +259,8 @@ class Plots:
         # Draw boundary
         if boundaryPoints is not None:
             plt.plot(boundaryPoints[0], boundaryPoints[1], 'k-')
+
+        return fig.number
 
 
     @staticmethod

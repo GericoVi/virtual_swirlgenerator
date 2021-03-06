@@ -36,8 +36,17 @@ def writeSU2(flowField: sg.FlowField, filename):
     # Get velocity magnitude at each cell
     velMag = np.linalg.norm(velVec, axis=1)
 
+    # Protection for zeros
+    stationary_nodes = velMag == 0
+
+    # Protection for divide by zero
+    velMag[stationary_nodes] = 1e-32
+
     # Get direction components of unit vector
     flowDirection = velVec/ np.column_stack((velMag,velMag,velMag))
+
+    # Correct unit vectors for stationary flows
+    flowDirection[stationary_nodes, :] = [(1/3)**0.5, (1/3)**0.5, (1/3)**0.5]
 
     # Dummy temperature array
     temp = np.zeros(np.shape(x))
