@@ -47,6 +47,7 @@ class Input:
 
         # Extra parameters
         self.axialVel = None
+        self.blRefLen = None
         self.swirlPlotRange = [None,None]
         self.swirlPlotNTicks = None
 
@@ -161,6 +162,10 @@ class Input:
             # May need better solution than this in future since will need a try/except pair for each optional config
             try:
                 self.axialVel = float(extraParams.get('axial_vel'))
+            except:
+                pass
+            try:
+                self.blRefLen = float(extraParams.get('bl_ref_len'))
             except:
                 pass
             try:

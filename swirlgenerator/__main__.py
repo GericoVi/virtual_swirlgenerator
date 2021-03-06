@@ -246,6 +246,11 @@ class Options:
             else:
                 raise RuntimeError(f'\nContour translation method specified but no contour translation section found in {self.configfile}')
         
+        # Boundary layer reference length could have been specified in the config file
+        if inputdata.blRefLen is not None:
+            self.ref_length = inputdata.blRefLen
+            self.boundarylayer = True
+
         # Set defaults
         inputdata.axialVel = (1.0 if inputdata.axialVel is None else inputdata.axialVel)
 
