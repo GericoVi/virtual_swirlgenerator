@@ -7,7 +7,6 @@
 
 import numpy as np
 from typing import Union
-import pre
 import alphashape
 
 '''
@@ -34,10 +33,15 @@ class Vortices:
 
     # Object constructor accepts lists also for convenience, then later converts to numpy arrays
     def __init__(self, model: str = None, centres: Union[list, np.ndarray] = None, strengths: Union[list, np.ndarray] = None, radius: Union[list, np.ndarray] = None, 
-                        axialVel: float = None, inputObject: pre.Input = None):
+                        axialVel: float = None, inputObject = None):
 
         # Extract attributes from Input object if supplied
         if inputObject is not None:
+            # Check if this is an Input object from the pre module - do import and check here so that this import isn't always needed
+            import pre
+            if not isinstance(inputObject, pre.Input):
+                raise RuntimeError('\'inputObject\' parameter given for Vortices class initialisation is not instance of Input class from pre module')
+
             self.numVortices    = len(inputObject.vortStrengths)
             self.model          = inputObject.vortModel           # Vortex type - which mathematical model to use for all the vortices in the domain
             self.centres        = inputObject.vortCoords          # Vortex centre
