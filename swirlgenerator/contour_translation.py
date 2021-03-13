@@ -61,7 +61,7 @@ class Contour:
             self.translateContourPlot(getColourbar=getColourbar)
 
 
-    def translateContourPlot(self, getColourbar=True, samplingMode=1, samplingParams=(10), circleParams=(200,75), minLevels=10, shrinkPlotMax=10):
+    def translateContourPlot(self, getColourbar=True, samplingMode=1, samplingParams=(10), circleParams=(200,30), minLevels=100, shrinkPlotMax=10):
         '''
         Wrapper function for translating a contour plot image after initialisation
         - getColourbar      - flag for extracting the colourbar or not from the image
@@ -92,7 +92,7 @@ class Contour:
             # Show final segmented image if requested
             if self.showSegmentation:
                 # Plot segmentation
-                cv2.circle(self.debug_fig, (self.boundaries[0][0][0],self.boundaries[0][0][1]), self.boundaries[0][1], (0,255,0), 1)
+                cv2.circle(self.debug_fig, (self.boundaries[0][0][0],self.boundaries[0][0][1]), self.boundaries[0][1], (0,0,255), 2)
                 
                 # Colourbar segmentation
                 if getColourbar:
@@ -261,9 +261,9 @@ class Contour:
         circles = cv2.HoughCircles(greyscale, cv2.HOUGH_GRADIENT, 1, rows/8, param1=self.circleParams[0], param2=self.circleParams[1], minRadius=int(rows/4), maxRadius=int(rows/2))
         # for x,y,r in circles[0]:
         #     x,y,r = int(x), int(y), int(r)
-        #     cv2.circle(drawing, (x,y), r, (0,255,0), 1)
+        #     cv2.circle(self.debug_fig, (x,y), r, (0,255,0), 1)
 
-        # cv2.imshow('circles',drawing)
+        # cv2.imshow('circles',self.debug_fig)
         # cv2.waitKey(0)
 
         # print(circles)
