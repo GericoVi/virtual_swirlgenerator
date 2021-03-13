@@ -42,9 +42,14 @@ def main():
             # Reconstruct flow field from contour plots
             else:
                 print('Reconstructing flow field...')
-                # Translate contour plot images to array of values
-                tangential = ct.Contour(inputData.tanImg, inputData.tanRng, cmap=inputData.tancmap, sampleDist=[inputData.numRings, inputData.angRes])
-                radial = ct.Contour(inputData.radImg, inputData.radRng, cmap=inputData.radcmap, sampleDist=[inputData.numRings, inputData.angRes])
+                # Translate contour plot images to array of values with default parameters
+                tangential = ct.Contour(inputData.tanImg, inputData.tanRng, cmap=inputData.tancmap, doTranslation=True)
+                radial = ct.Contour(inputData.radImg, inputData.radRng, cmap=inputData.radcmap, doTranslation=True)
+
+                if tangential.error != 0:
+                    raise RuntimeError(tangential.error_message)
+                if radial.error != 0:
+                    raise RuntimeError(radial.error_message)
 
                 # Calculate velocity field from flow angles mapped to flowfield nodes
                 flowfield.reconstructDomain(tangential.getValuesAtNodes(flowfield.coords), radial.getValuesAtNodes(flowfield.coords), inputData.axialVel)
@@ -236,7 +241,6 @@ class Options:
 
         # Check contour translation method inputs if we are going to use it
         if self.ctm:
-            print('test')
             if inputdata.contours_flag:
                 if inputdata.tanImg is None or inputdata.tanRng is None or inputdata.radImg is None or inputdata.radRng is None or \
                    inputdata.tanImg == '' or inputdata.tanRng == '' or inputdata.radImg == '' or inputdata.radRng == '':
