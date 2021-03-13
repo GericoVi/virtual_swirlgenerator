@@ -304,10 +304,10 @@ class FlowField:
             y = np.max(self.coords_polar.real) - self.coords_polar.real
 
             # Get yplus
-            yplus = self.rho * u_tau * y / KIN_VISC
+            yplus = u_tau * y / KIN_VISC
 
             # Calc non-dimensional parameters
-            R = self.rho * u_tau * self.bl_delta / KIN_VISC
+            R = u_tau * self.bl_delta / KIN_VISC
             u_inf_plus = u_inf / u_tau
 
             # Eta in terms of y plus
@@ -422,9 +422,6 @@ class FlowField:
         # Get swirl angle and convert it to radians
         maxSwirlAngle = np.deg2rad(np.abs(vortData[1]))
 
-        # Get vortex rotation information from sign of maximum angle specified
-        anitclockwise = (True if vortData[1] > 0 else False)
-
         # Displacement of each node from vortex centres
         disp = self.coords - vortO
         # Get radial coordinate from vortex centre - theta coordinate is the same (no rotations happening)
@@ -480,7 +477,7 @@ class FlowField:
             perpendicularVect[i] = -vect.imag + 1j*vect.real
 
         # Now calculate the component of the velocity at each point, perpendicular to the boundary curve
-        velOut = np.array([vel*np.vdot(vel,perp) for vel,perp in zip(sortedVels,perpendicularVect)])
+        velOut = np.array([np.vdot(vel,perp)/abs(vel) for vel,perp in zip(sortedVels,perpendicularVect)])
 
         # Integrate to get total flux through boundary
         fluxOut = np.sum(np.abs(velOut)*np.abs(parallelVect)/2)
