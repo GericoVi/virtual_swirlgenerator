@@ -9,6 +9,7 @@ import numpy as np
 import cv2
 import os
 from scipy.interpolate import griddata
+from scipy.spatial import ConvexHull
 
 class Contour:
     '''
@@ -436,13 +437,14 @@ class Contour:
         # Convert sample point coordinates from pixel units to inlet units, also from complex coords to 2D array
         samples = np.column_stack([self.samples.real*pixToUnit, self.samples.imag*pixToUnit])
 
-        # Interpolate onto desired discretisation
-        values = griddata((samples[:,0], samples[:,1]), self.values, (nodes.real, nodes.imag), method=interpolation)
+        # Get convex hull of sample points - Need to add an additional outer ring of points so that all boundary nodes get values
+        # Because the input nodes will likely be of a higher resolution than the sample points, some will lay outside the convex hull of the sample points because of circle discretisation
+        hull = ConvexHull(samples)
+        samples = np.append(samples, samples[hull.vertices,:]*1.1, 0)
+        values = np.append(self.values, self.values[hull.vertices])
 
-        # Since we have not sampled at the edges, the boundary nodes will have nan values.
-        # Need to use griddata again for boundary nodes using the 'nearest' interpolation method
-        boundaryIdxs = np.isnan(values)
-        values[boundaryIdxs] = griddata((samples[:,0], samples[:,1]), self.values, (nodes[boundaryIdxs].real, nodes[boundaryIdxs].imag), method='nearest')
+        # Interpolate onto desired discretisation
+        values = griddata((samples[:,0], samples[:,1]), values, (nodes.real, nodes.imag), method=interpolation)
 
         return values
 
