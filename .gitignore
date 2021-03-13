@@ -6,5 +6,3 @@ swirlGenerator.egg-info
 testharness.py
 *.zip
 *.code-workspace
-testcases/Results
-Testing
