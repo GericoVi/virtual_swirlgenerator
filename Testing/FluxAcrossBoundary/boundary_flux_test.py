@@ -75,7 +75,10 @@ if __name__ == '__main__':
     maxStrengthVort = 2
     maxCoreVort = 0.5
 
-    numProcesses = mp.cpu_count()-1
+    try:
+        numProcesses = int(sys.argv[1])
+    except:
+        numProcesses = mp.cpu_count()-1
     #numProcesses = 5
 
     print(f'\nDoing flux across boundary tests with parallel pool of {numProcesses} workers...')
