@@ -34,7 +34,7 @@ class TestCase(NamedTuple):
     maxNumVort: int = None             # Max number of vortices to randomly generate
     maxStrengthVort: float = None      # Max strength of a vortex when randomly generating
     maxCoreVort: float = None          # Max core radius of a vortex when randomly generating
-    bl: float = None                   # Reference length for the boundary layer model
+    bl: float = 0                      # Reference length for the boundary layer model
     meshfile: str = None               # Name of mesh file to extract inlet mesh from
     outFolder: str = None              # Name of folder to output images and data
 
