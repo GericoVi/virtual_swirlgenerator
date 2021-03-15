@@ -13,8 +13,6 @@ import time
 import pandas as pd
 import numpy as np
 import multiprocessing as mp
-import random
-from matplotlib import pyplot as plt
 from matplotlib import cm
 from tqdm import tqdm
 from typing import NamedTuple
@@ -34,14 +32,6 @@ import post
 '''
 Named Tuple classes for storing arguements better
 '''
-class TestCase(NamedTuple):
-    caseNum: int = None                # Case identifier - for consitent rng seed
-    maxNumVort: int = None             # Max number of vortices to randomly generate
-    maxStrengthVort: float = None      # Max strength of a vortex when randomly generating
-    maxCoreVort: float = None          # Max core radius of a vortex when randomly generating
-    bl: float = None                   # Reference length for the boundary layer model
-    meshfile: str = None               # Name of mesh file to extract inlet mesh from
-    outFolder: str = None              # Name of folder to output images and data
 
 class Test(NamedTuple):
     caseNum: int = None                # Case identifier
@@ -54,55 +44,6 @@ class Test(NamedTuple):
     dataFolder: str = None             # Folder containing the input images and flow field data for comparison
     outputFolder: str = None           # Folder to output images of the reconstructed flow field
     savePlots: bool = False            # Do we save the plots for this case
-
-
-def makeTestCase(args: TestCase):
-    # Initialise rng here with case specific seeds - order of execution not guaranteed so need to be careful with the random number stream
-    random.seed(a=args.caseNum*9999)
-
-    # Set up descritisation
-    flowfield = sg.FlowField(pre.Input.extractMesh(args.meshfile))
-
-    # Get duct radius
-    duct_radius = np.max(np.abs(flowfield.coords))
-
-    numVortices     = random.randint(1,args.maxNumVort)
-    vortCentres     = [None]*numVortices
-    vortStrengths   = [None]*numVortices
-    vortCores       = [None]*numVortices
-
-    for j in range(numVortices):
-        vortCentres[j]      = [random.uniform(-duct_radius,duct_radius),random.uniform(-duct_radius,duct_radius)]
-        vortStrengths[j]    = random.uniform(-args.maxStrengthVort,args.maxStrengthVort)
-        vortCores[j]        = random.uniform(0,args.maxCoreVort)
-
-    vortexDefs = sg.Vortices(model='lo', centres=vortCentres, strengths=vortStrengths, radius=vortCores)
-    flowfield.computeDomain(vortexDefs, axialVel=1)
-
-    # Model a boundary layer within the inlet condition if requested
-    if args.bl > 0:
-        flowfield.makeBoundaryLayer(args.bl)
-
-    # Save flowfield variables so we can get the 'correct' values later
-    flowfield.save(os.path.join(args.outFolder,f'{args.caseNum}'))
-
-    # Plot the tangential and radial flow angles and save as images
-    plots = post.Plots(flowfield)
-    plots.plotSwirl()
-    tanRange = post.Plots.__getContourRange__(plots.swirlAngle)
-    radRange = post.Plots.__getContourRange__(plots.radialAngle)
-    f = plt.figure(1)
-    f.savefig(os.path.join(args.outFolder,f'{args.caseNum}_tangential_{tanRange}.png'))
-    f = plt.figure(2)
-    f.savefig(os.path.join(args.outFolder,f'{args.caseNum}_radial_{radRange}.png'))
-
-    # Save streamlines plot as well for interest
-    plots.plotVelocity()
-    f = plt.figure(4)
-    f.savefig(os.path.join(args.outFolder,f'{args.caseNum}_streamlines.png'))
-    plt.close('all')
-
-    return None
 
 
 def doTest(args: Test):
@@ -118,7 +59,7 @@ def doTest(args: Test):
         cmap = args.cmap
 
     # For creating pandas dataframe
-    columns = ['Colourmap','SamplingMode','SamplingParams','ShrinkPlotMax','CaseNum','RMSE', 'Time']
+    columns = ['Colourmap','SamplingMode','SamplingParams','NumNodes','ShrinkPlotMax','CaseNum','RMSE', 'Time']
 
     # All flowfields are using the same mesh so we can reuse the same discretisation
     flowfield = sg.FlowField(pre.Input.extractMesh(args.meshfile))
@@ -159,6 +100,9 @@ def doTest(args: Test):
 
     end = time.time()
 
+    # Get number of nodes
+    numNodes = tangential.samples.size
+
     # Save a couple samples
     if args.savePlots:
         plots = post.Plots(flowfield)
@@ -172,36 +116,31 @@ def doTest(args: Test):
 
     rmse = post.SwirlDescriptors.getError(correctValues, values)
 
-    return pd.DataFrame([[cmapName,args.samplingMode,args.samplingParams,args.shrinkPlotMax,args.caseNum,rmse,end-start]],
+    return pd.DataFrame([[cmapName,args.samplingMode,args.samplingParams,numNodes,args.shrinkPlotMax,args.caseNum,rmse,end-start]],
                         columns=columns)
 
 if __name__ == '__main__':
 
     resultsFile = 'results.csv'
     meshfile = os.path.join(parentpath, 'cylinder.su2')
-    numWorkers = mp.cpu_count()-1
-    #numWorkers = 5
 
     # Tuple for params of each sampling mode 
-    sampling_modes = ((1, (34)), (2, (34, 3.3)), (3, (None)), (1, (20)), (2, (20, 5.4)), (1, (10)), (2, (10, 10)), (1, (5)), (2, (5, 18.4)))
+    sampling_modes = ((1, (40)), (2, (40, 2.8)), (1, (34)), (2, (34, 3.3)), (3, (None)), (1, (20)), (2, (20, 5.4)), (1, (10)), (2, (10, 10)), (1, (5)), (2, (5, 18.4)))
 
     #cmaps = [None, 'jet']
     #shrink = [0,10]
     cmaps = ['jet']
     shrink = [0]
-    
-    # Bounds for randomly generated vortex cases
-    numCases = 100
-    maxNumVort = 10
-    maxStrengthVort = 0.1
-    maxCoreVort = 0.05
+
+    try:
+        numProcesses = int(sys.argv[1])
+    except:
+        numProcesses = mp.cpu_count()-1
 
     script_start_time = time.time()
 
     imgfolder = 'images'
     outfolder = 'results'
-
-    numTests = len(cmaps)*len(shrink)*len(sampling_modes)*numCases
 
     # Create the necessary folders if they're not present
     if not os.path.exists(imgfolder):
@@ -209,24 +148,11 @@ if __name__ == '__main__':
     if not os.path.exists(outfolder):
         os.mkdir(outfolder)
 
-    # Make list of argument tuples for parallel processing
-    args_list = [None]*numCases
-    for j in range(numCases):
-        args_list[j] = TestCase(caseNum=j, maxNumVort=maxNumVort, maxStrengthVort=maxStrengthVort, maxCoreVort=maxCoreVort, meshfile=meshfile, outFolder=imgfolder)
-
-    # Make all test images using pool of processes
-    print(f'Making flowfields for test images with parallel pool of {numWorkers} workers...')
-    startTime = time.time()
-    pool = mp.Pool(processes = (numWorkers))
-    _ = list(tqdm(pool.imap(makeTestCase, args_list), total=numCases))
-    pool.close()
-    pool.join()
-    endTime = time.time()
-    print(f'{numCases} test cases created in {imgfolder}')
-
-
     # Get list of files in test case folder
     files = [f for f in os.listdir(imgfolder) if (os.path.isfile(os.path.join(imgfolder, f)) and f.split('.')[-1].lower() == 'png')]
+    numCases = len(files)/4
+
+    numTests = len(cmaps)*len(shrink)*len(sampling_modes)*numCases
 
     # Create list of arguments for each test case
     args_i = 0
