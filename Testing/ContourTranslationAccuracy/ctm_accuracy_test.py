@@ -150,7 +150,7 @@ if __name__ == '__main__':
 
     # Get list of files in test case folder
     files = [f for f in os.listdir(imgfolder) if (os.path.isfile(os.path.join(imgfolder, f)) and f.split('.')[-1].lower() == 'png')]
-    numCases = len(files)/4
+    numCases = int(len(files)/4)
 
     numTests = len(cmaps)*len(shrink)*len(sampling_modes)*numCases
 
