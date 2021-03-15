@@ -70,13 +70,19 @@ if __name__ == '__main__':
     meshfile = os.path.join(parentpath, 'cylinder.su2')
     figuresfolder = 'results'
 
-    numSamples = 100
     maxNumVort = 10
     maxStrengthVort = 2
     maxCoreVort = 0.5
 
     try:
-        numProcesses = int(sys.argv[1])
+        numSamples = int(sys.argv[1])
+    except:
+        raise RuntimeError('Valid number of samples not provided for first argument')
+
+    print(f'Proceeding with numSamples = {numSamples}')
+
+    try:
+        numProcesses = int(sys.argv[2])
     except:
         numProcesses = mp.cpu_count()-1
     #numProcesses = 5

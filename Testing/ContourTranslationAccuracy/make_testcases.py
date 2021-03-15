@@ -92,10 +92,16 @@ if __name__ == '__main__':
     meshfile = os.path.join(parentpath, 'cylinder.su2')
 
     # Bounds for randomly generated vortex cases
-    numCases = 100
     maxNumVort = 10
     maxStrengthVort = 0.1
     maxCoreVort = 0.05
+
+    try:
+        numCases = int(sys.argv[1])
+    except:
+        raise RuntimeError('Valid number of samples not provided for first argument')
+
+    print(f'Proceeding with numCases = {numCases}')
 
     try:
         numProcesses = int(sys.argv[1])
