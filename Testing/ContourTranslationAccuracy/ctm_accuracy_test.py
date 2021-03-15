@@ -179,9 +179,9 @@ if __name__ == '__main__':
                     args_i += 1
 
     # Do all test cases using a pool of processes
-    print(f'\nStarting tests on parallel pool of {numWorkers} workers...')
+    print(f'\nStarting tests on parallel pool of {numProcesses} workers...')
     startTime = time.time()
-    pool = mp.Pool(processes = (numWorkers))
+    pool = mp.Pool(processes = (numProcesses))
     results = list(tqdm(pool.imap(doTest, args_list), total=len(args_list)))
     pool.close()
     pool.join()
