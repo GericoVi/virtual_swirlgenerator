@@ -36,6 +36,7 @@ Named Tuple classes for storing arguements better
 class Test(NamedTuple):
     caseNum: int = None                # Case identifier
     cmap: str = None                   # Colour map name to use, or none if extracting from image
+    interp: str = 'linear'
     samplingMode: int = None           # Mode for creating the sampling distribution
     samplingParams: tuple = None       # Sampling params relevant to the sampling mode chosen - details in contour_translation.samplePoints()
     shrinkPlotMax: int = 10            # Maximum number to try and shrink the plot to attempt to crop border
