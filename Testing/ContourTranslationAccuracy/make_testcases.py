@@ -104,7 +104,7 @@ if __name__ == '__main__':
     print(f'Proceeding with numCases = {numCases}')
 
     try:
-        numProcesses = int(sys.argv[1])
+        numProcesses = int(sys.argv[2])
     except:
         numProcesses = mp.cpu_count()-1
 
