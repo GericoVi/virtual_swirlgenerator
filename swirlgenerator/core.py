@@ -460,43 +460,47 @@ class FlowField:
         - Currently only checks for no-flux condition
         '''
 
-        # Get planar velocity vectors as complex numbers
-        vels   = self.velocity[:,0] + 1j * self.velocity[:,1]
-        # Get the velocities of the nodes at the boundary
-        sortedVels = vels[self._sortIdx_]
+        # Get planar velocity vectors
+        vels   = self.velocity[:,0:2]
+        # Get the velocities of the nodes at the boundary - without duplicate starting point
+        sortedVels = vels[self._sortIdx_[:-1],:]
+
+        # Get boundary nodes without duplicate starting point
+        boundaryNodes = self.boundaryCurve[:-1]
 
         # Calculate vectors which are parallel to the boundary curve
-        parallelVect = np.empty(self.boundaryCurve.size, dtype=complex)
-        for i in range(self.boundaryCurve.size):
-            if (i != 0 and i != self.boundaryCurve.size-1):
-                parallelVect[i] = self.boundaryCurve[i+1]-self.boundaryCurve[i-1]
-            elif (i == 0):
-                parallelVect[0] = self.boundaryCurve[1]-self.boundaryCurve[-1]
+        parallelVect = np.empty(sortedVels.shape)
+        for i in range(boundaryNodes.size):    
+            if (i == 0):
+                parallel = boundaryNodes[1]-boundaryNodes[-1]
+            elif (i == boundaryNodes.size-1):
+                parallel = boundaryNodes[0]-boundaryNodes[i-1]
             else:
-                parallelVect[i] = self.boundaryCurve[0]-self.boundaryCurve[i-1]
+                parallel = boundaryNodes[i+1]-boundaryNodes[i-1]
+
+            parallelVect[i,:] = [parallel.real, parallel.imag]
 
         # Calculate vectors which are perpendicular to the boundary curve
-        perpendicularVect = np.empty(self.boundaryCurve.size, dtype=complex)
-        for i, vect in enumerate(parallelVect):
-            perpendicularVect[i] = -vect.imag + 1j*vect.real
+        perpendicularVect = np.column_stack([-parallelVect[:,1], parallelVect[:,0]])
 
         # Now calculate the component of the velocity at each point, perpendicular to the boundary curve
-        velOut = np.array([np.vdot(vel,perp)/abs(vel) for vel,perp in zip(sortedVels,perpendicularVect)])
+        velOut = np.array([perp * np.dot(vel, perp)/np.dot(perp, perp) for vel,perp in zip(sortedVels,perpendicularVect)])
 
         # Integrate to get total flux through boundary
-        fluxOut = np.sum(np.abs(velOut)*np.abs(parallelVect)/2)
+        fluxOut = np.sum([np.dot(vel,vel)*np.dot(parallel,parallel)/2 for vel, parallel in zip(velOut,parallelVect)])
 
-        # Get avg flux out per unit boundary length
+        # Get boundary length - need duplicate start point here to use diff function
         perimeter = np.sum(np.abs(np.diff(self.boundaryCurve, axis=0)))
 
         if plot:
             import matplotlib.pyplot as plt
             plt.figure()
             plt.gca().set_aspect('equal', adjustable='box')
-            plt.quiver(self.boundaryCurve.real, self.boundaryCurve.imag, velOut.real,velOut.imag,color='red')
-            plt.quiver(self.boundaryCurve.real, self.boundaryCurve.imag, parallelVect.real,parallelVect.imag,color='blue')
+            plt.quiver(boundaryNodes.real, boundaryNodes.imag, velOut[:,0],velOut[:,1],color='red')
+            plt.quiver(boundaryNodes.real, boundaryNodes.imag, parallelVect[:,0],parallelVect[:,1],color='blue')
             #plt.show()
             
+        # Return avg flux out per unit boundary length
         return fluxOut/perimeter
 
     
