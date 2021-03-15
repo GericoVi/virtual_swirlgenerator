@@ -66,7 +66,7 @@ def make_vortex_and_get_flux(args):
 
 if __name__ == '__main__':
 
-    resultsFile = 'results.csv'
+    resultsFile = 'results'
     meshfile = os.path.join(parentpath, 'cylinder.su2')
     figuresfolder = 'results'
 
@@ -102,7 +102,10 @@ if __name__ == '__main__':
     print(f'\nDone. Elapsed time: {script_end_time-script_start_time}')
     #print(results)
 
+    # Save as numpy file
     np.savez(resultsFile, results=results)
+    # Save as csv
+    np.savetxt(f'{resultsFile}.csv', results)
 
     npzfile = np.load(f'{resultsFile}.npz', allow_pickle=True)
 
