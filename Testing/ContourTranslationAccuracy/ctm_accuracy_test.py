@@ -117,7 +117,6 @@ def doTest(args: Test):
         correctValues   = np.hstack([correctTangential, correctRadial])
 
         rmse = post.SwirlDescriptors.getError(correctValues, values)
-        values[1231241251234] = 2
 
         return pd.DataFrame([[cmapName,args.samplingMode,args.samplingParams,numNodes,args.shrinkPlotMax,args.caseNum,rmse,end-start]],
                             columns=columns)
