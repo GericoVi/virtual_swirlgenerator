@@ -60,7 +60,7 @@ def doTest(args: Test):
         cmap = args.cmap
 
     # For creating pandas dataframe
-    columns = ['Colourmap','SamplingMode','SamplingParams','NumNodes','ShrinkPlotMax','CaseNum','RMSE', 'Time']
+    columns = ['Colourmap','SamplingMode','SamplingParams','NumNodes','ShrinkPlotMax','CaseNum','RMSE', 'RMSPE', 'Time']
 
     # All flowfields are using the same mesh so we can reuse the same discretisation
     flowfield = sg.FlowField(pre.Input.extractMesh(args.meshfile))
@@ -116,9 +116,9 @@ def doTest(args: Test):
         values          = np.hstack([tangentialValues, radialValues])
         correctValues   = np.hstack([correctTangential, correctRadial])
 
-        rmse = post.SwirlDescriptors.getError(correctValues, values)
+        rmse, rmspe = post.SwirlDescriptors.getError(correctValues, values)
 
-        return pd.DataFrame([[cmapName,args.samplingMode,args.samplingParams,numNodes,args.shrinkPlotMax,args.caseNum,rmse,end-start]],
+        return pd.DataFrame([[cmapName,args.samplingMode,args.samplingParams,numNodes,args.shrinkPlotMax,args.caseNum,rmse,rmspe,end-start]],
                             columns=columns)
 
     except BaseException as e:
