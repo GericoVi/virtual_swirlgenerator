@@ -60,7 +60,7 @@ class Plots:
             plt.show()
 
 
-    def plotVelocity(self, arrowDensity=50, quiver=True, streamlines=True, axial=True, border=True, bl_line=False):
+    def plotVelocity(self, arrowDensity=40, quiver=True, streamlines=True, axial=True, border=True, bl_line=False):
         '''
         Create plots for the swirling velocity profile as a quiver plot and a streamlines plot
         - arrowDensity - Parameter which controls the sub sampling of the velocity field for the quiver plot
@@ -80,7 +80,7 @@ class Plots:
             plt.figure()
             plt.gca().set_aspect('equal', adjustable='box')
             plt.title("Quiver")
-            plt.quiver(reduced_x, reduced_y, u, v, units='dots', width=2,headwidth=5,headlength=5,headaxislength=2.5)
+            plt.quiver(reduced_x, reduced_y, u, v, units='dots', width=1.5,headwidth=8,headlength=5,headaxislength=2.5,scale=0.05)
             plt.axis('off')
             if border:
                 # Draw boundary
@@ -95,11 +95,11 @@ class Plots:
             plt.figure()
             plt.gca().set_aspect('equal', adjustable='box')
             plt.title("Streamlines")
-            plt.streamplot(self.xy_i[0], self.xy_i[1], u, v, density=2)            # streamplot uses vector axis for xy instead of meshgrid for some reason?
+            plt.streamplot(self.xy_i[0], self.xy_i[1], u, v, density=1.5, linewidth=1.5,minlength=0.2)            # streamplot uses vector axis for xy instead of meshgrid for some reason?
             plt.axis('off')
             if border:
                 # Draw boundary
-                plt.plot(self.boundary[0], self.boundary[1],'k-')
+                plt.plot(self.boundary[0], self.boundary[1],'k-', linewidth=3)
 
         if axial:
             if border:
