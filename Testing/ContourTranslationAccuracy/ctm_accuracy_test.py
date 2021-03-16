@@ -90,35 +90,44 @@ def doTest(args: Test):
     else:
         samplingParams = args.samplingParams
     
-    tangential.translateContourPlot(getColourbar=getColourbar, samplingMode=args.samplingMode, samplingParams=samplingParams)
-    radial.translateContourPlot(getColourbar=getColourbar, samplingMode=args.samplingMode, samplingParams=samplingParams)
+    try:
+        tangential.translateContourPlot(getColourbar=getColourbar, samplingMode=args.samplingMode, samplingParams=samplingParams)
+        radial.translateContourPlot(getColourbar=getColourbar, samplingMode=args.samplingMode, samplingParams=samplingParams)
 
-    tangentialValues = tangential.getValuesAtNodes(flowfield.coords, interpolation=args.interp)
-    radialValues = radial.getValuesAtNodes(flowfield.coords, interpolation=args.interp)
+        tangentialValues = tangential.getValuesAtNodes(flowfield.coords, interpolation=args.interp)
+        radialValues = radial.getValuesAtNodes(flowfield.coords, interpolation=args.interp)
 
-    # Do the flowfield reconstruction anyway even though the values won't be used, just for the representative time
-    flowfield.reconstructDomain(tangentialValues, radialValues, axialVel=1)
+        # Do the flowfield reconstruction anyway even though the values won't be used, just for the representative time
+        flowfield.reconstructDomain(tangentialValues, radialValues, axialVel=1)
 
-    end = time.time()
+        end = time.time()
 
-    # Get number of nodes
-    numNodes = tangential.samples.size
+        # Get number of nodes
+        numNodes = tangential.samples.size
 
-    # Save a couple samples
-    if args.savePlots:
-        plots = post.Plots(flowfield)
-        label = f'{args.caseNum}_cmap_{cmapName}_samplingMode_{args.samplingMode}_shrink_{args.shrinkPlotMax}.pdf'
-        plots.plotInletNodes(show=False)
-        plots.plotAll(pdfName=os.path.join(args.outputFolder,label), swirlAxisRange=[tanRng[0],tanRng[1],radRng[0],radRng[1]], swirlAxisNTicks=11)
+        # Save a couple samples
+        if args.savePlots:
+            plots = post.Plots(flowfield)
+            label = f'{args.caseNum}_cmap_{cmapName}_samplingMode_{args.samplingMode}_shrink_{args.shrinkPlotMax}.pdf'
+            plots.plotInletNodes(show=False)
+            plots.plotAll(pdfName=os.path.join(args.outputFolder,label), swirlAxisRange=[tanRng[0],tanRng[1],radRng[0],radRng[1]], swirlAxisNTicks=11)
 
-    # Concatenate the arrays to get the RMSE across both tangential and radial 
-    values          = np.hstack([tangentialValues, radialValues])
-    correctValues   = np.hstack([correctTangential, correctRadial])
+        # Concatenate the arrays to get the RMSE across both tangential and radial 
+        values          = np.hstack([tangentialValues, radialValues])
+        correctValues   = np.hstack([correctTangential, correctRadial])
 
-    rmse = post.SwirlDescriptors.getError(correctValues, values)
+        rmse = post.SwirlDescriptors.getError(correctValues, values)
+        values[1231241251234] = 2
 
-    return pd.DataFrame([[cmapName,args.samplingMode,args.samplingParams,numNodes,args.shrinkPlotMax,args.caseNum,rmse,end-start]],
-                        columns=columns)
+        return pd.DataFrame([[cmapName,args.samplingMode,args.samplingParams,numNodes,args.shrinkPlotMax,args.caseNum,rmse,end-start]],
+                            columns=columns)
+
+    except BaseException as e:
+        print(f'Case number {args.caseNum} failed with cmap={cmapName}, sampling mode={args.samplingMode}, sampling params={args.samplingParams}, shrink plot={args.shrinkPlotMax}')
+        print(f'Error message: {e}')
+
+        return pd.DataFrame([[None]*8],
+                            columns=columns)
 
 if __name__ == '__main__':
 
