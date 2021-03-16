@@ -49,7 +49,7 @@ Transfinite Line {9,10,11,12}	= 45 Using Progression 0.85;
 
 Transfinite Surface {1,2,3,4,5};
 
-Extrude {0,0,2} {
+Extrude {0,0,20} {
 	Surface {1,2,3,4,5}; Layers {50}; Recombine;
 }
 
