@@ -28,6 +28,7 @@ class Contour:
         
         # Extract data into attributes
         self.imgArray = cv2.imread(imgFile)
+        self.debug_fig = self.imgArray.copy()   # Copy of image for drawing over segmentation boundaries
         self.range = np.sort(range)             # Make sure the colourmap range is increasing
         self.cmap = cmap
 
@@ -40,7 +41,6 @@ class Contour:
         self.contours = None                        # Edges within image as contours (binary image array)
         self.boundaries = None                      # ( (centre_xy,radius), (top_left_x, top_left_y, width, height) ), of bounding circles/boxes
         self.pixels = None                          # [[complex coords], [B,G,R]] - stores the BGR 'vectors' of each pixel and their corresponding coordinates relative to an origin coincident with the centre of the contour plot
-        self.debug_fig = None                       # Placeholder attribute - used for storing any debugging related figures
         self.error = 0                              # Error flag
         self.error_message = None                   # Corresponding error message
 
@@ -92,11 +92,11 @@ class Contour:
             # Show final segmented image if requested
             if self.showSegmentation:
                 # Plot segmentation
-                cv2.circle(self.debug_fig, (self.boundaries[0][0][0],self.boundaries[0][0][1]), self.boundaries[0][1], (0,0,255), 2)
+                cv2.circle(self.debug_fig, (self.boundaries[0][0][0],self.boundaries[0][0][1]), self.boundaries[0][1], (255,0,255), 2)
                 
                 # Colourbar segmentation
                 if getColourbar:
-                    cv2.rectangle(self.debug_fig, (int(self.boundaries[1][0]), int(self.boundaries[1][1])), (int(self.boundaries[1][0]+self.boundaries[1][2]), int(self.boundaries[1][1]+self.boundaries[1][3])), (255,0,0),2)
+                    cv2.rectangle(self.debug_fig, (int(self.boundaries[1][0]), int(self.boundaries[1][1])), (int(self.boundaries[1][0]+self.boundaries[1][2]), int(self.boundaries[1][1]+self.boundaries[1][3])), (255,0,255),2)
 
                 # Show with matplotlib so we can zoom
                 from matplotlib import pyplot as plt
@@ -214,9 +214,6 @@ class Contour:
 
         # Greyscale for edge detection
         img_grey = cv2.cvtColor(self.imgArray,cv2.COLOR_BGR2GRAY)
-
-        # Greyscale image but with 3 channels - so the bounding boxes/circles can be drawn in colour to contrast with original image
-        self.debug_fig = np.dstack([img_grey,img_grey,img_grey])
 
         # Get edges as a binary image with the canny algorithm - with these threshold values, the plot and colour bar edges are reliably found while the contour lines within the plot are mostly ignored
         canny_edges = cv2.Canny(img_grey,100,200)
