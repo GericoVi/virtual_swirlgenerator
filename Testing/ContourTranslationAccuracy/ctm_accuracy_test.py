@@ -112,10 +112,6 @@ def doTest(args: Test):
             plots.plotInletNodes(show=False)
             plots.plotAll(pdfName=os.path.join(args.outputFolder,label), swirlAxisRange=[tanRng[0],tanRng[1],radRng[0],radRng[1]], swirlAxisNTicks=11)
 
-        # Concatenate the arrays to get the RMSE across both tangential and radial 
-        values          = np.hstack([tangentialValues, radialValues])
-        correctValues   = np.hstack([correctTangential, correctRadial])
-
         # Get RMSE of extracted tangential and radial flow angles separately
         rmse_tan = post.SwirlDescriptors.getError(correctTangential, tangentialValues)
         rmse_rad = post.SwirlDescriptors.getError(correctRadial, radialValues)
