@@ -134,7 +134,7 @@ def doTest(args: Test):
         print(f'Case number {args.caseNum} failed with cmap={cmapName}, sampling mode={args.samplingMode}, sampling params={args.samplingParams}, shrink plot={args.shrinkPlotMax}')
         print(f'Error message: {e}')
 
-        return pd.DataFrame([[None]*9],
+        return pd.DataFrame([[None]*8],
                             columns=columns)
 
 if __name__ == '__main__':
