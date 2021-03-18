@@ -60,7 +60,7 @@ def doTest(args: Test):
         cmap = args.cmap
 
     # For creating pandas dataframe
-    columns = ['Colourmap','SamplingMode','SamplingParams','NumNodes','ShrinkPlotMax','CaseNum','RMSE', 'RMSPE', 'Time']
+    columns = ['Colourmap','SamplingMode','SamplingParams','NumNodes','ShrinkPlotMax','CaseNum','NRMSE', 'Time']
 
     # All flowfields are using the same mesh so we can reuse the same discretisation
     flowfield = sg.FlowField(pre.Input.extractMesh(args.meshfile))
@@ -116,9 +116,22 @@ def doTest(args: Test):
         values          = np.hstack([tangentialValues, radialValues])
         correctValues   = np.hstack([correctTangential, correctRadial])
 
-        rmse, rmspe = post.SwirlDescriptors.getError(correctValues, values)
+        # Get RMSE of extracted tangential and radial flow angles separately
+        rmse_tan = post.SwirlDescriptors.getError(correctTangential, tangentialValues)
+        rmse_rad = post.SwirlDescriptors.getError(correctRadial, radialValues)
 
-        return pd.DataFrame([[cmapName,args.samplingMode,args.samplingParams,numNodes,args.shrinkPlotMax,args.caseNum,rmse,rmspe,end-start]],
+        # Get average observation value
+        avg_tan = np.mean(tangentialValues)
+        avg_rad = np.mean(radialValues)
+
+        # Get normalised root mean square errors using mean
+        nrmse_tan = rmse_tan / avg_tan
+        nrmse_rad = rmse_rad / avg_rad
+
+        # Get avg of these
+        nrmse = (nrmse_tan + nrmse_rad) / 2
+
+        return pd.DataFrame([[cmapName,args.samplingMode,args.samplingParams,numNodes,args.shrinkPlotMax,args.caseNum,nrmse,end-start]],
                             columns=columns)
 
     except BaseException as e:
