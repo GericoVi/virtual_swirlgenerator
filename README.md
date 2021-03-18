@@ -1,4 +1,4 @@
-# Virtual_StreamVane
+# Virtual SwirlGenerator
  Python tool for creating arbitrary swirling inflow boundary conditions for use with a CFD framework. Created as part of a Master's dissertation for MEng Aerospace Engineering.
  
  Toolkit containing methods for generating inlet conditions for CFD including parameterised creation of continuous vortical distributions and extraction of numerical data from images of contour plots.
