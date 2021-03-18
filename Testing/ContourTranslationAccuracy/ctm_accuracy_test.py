@@ -116,13 +116,13 @@ def doTest(args: Test):
         rmse_tan = post.SwirlDescriptors.getError(correctTangential, tangentialValues)
         rmse_rad = post.SwirlDescriptors.getError(correctRadial, radialValues)
 
-        # Get average observation value
-        avg_tan = np.mean(tangentialValues)
-        avg_rad = np.mean(radialValues)
+        # Get range of observations 
+        rng_tan = np.max(tangentialValues) - np.min(tangentialValues)
+        rng_rad = np.max(radialValues) - np.min(radialValues)
 
         # Get normalised root mean square errors using mean
-        nrmse_tan = rmse_tan / avg_tan
-        nrmse_rad = rmse_rad / avg_rad
+        nrmse_tan = rmse_tan / rng_tan
+        nrmse_rad = rmse_rad / rng_rad
 
         # Get avg of these
         nrmse = (nrmse_tan + nrmse_rad) / 2
