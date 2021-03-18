@@ -450,8 +450,7 @@ class SwirlDescriptors:
         if not np.size(field1) == np.size(field2):
             raise RuntimeError('Two input arrays must have the same number of elements')
 
-        # Get RMSE and root mean square percentage error
+        # Get RMSE 
         rmse = np.sqrt(np.sum((field1-field2)**2)/np.size(field1))
-        rmspe = np.sqrt(np.sum(((field1-field2)/field1)**2)/np.size(field1))*100
 
-        return rmse, rmspe
+        return rmse
