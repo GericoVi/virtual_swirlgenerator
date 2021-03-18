@@ -117,8 +117,8 @@ def doTest(args: Test):
         rmse_rad = post.SwirlDescriptors.getError(correctRadial, radialValues)
 
         # Get range of observations 
-        rng_tan = np.max(tangentialValues) - np.min(tangentialValues)
-        rng_rad = np.max(radialValues) - np.min(radialValues)
+        rng_tan = np.nanmax(tangentialValues) - np.nanmin(tangentialValues)
+        rng_rad = np.nanmax(radialValues) - np.nanmin(radialValues)
 
         # Get normalised root mean square errors using mean
         nrmse_tan = rmse_tan / rng_tan
