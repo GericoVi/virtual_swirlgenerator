@@ -48,6 +48,7 @@ class Contour:
         self.showSegmentation = showSegmentation
 
         # Image processing parameters
+        self.samplingMode = None
         self.circleParams = None
         self.minLevels = None
 
@@ -75,6 +76,7 @@ class Contour:
         # Set the necessary attributes using the inputs
         self.circleParams = circleParams
         self.minLevels = minLevels
+        self.samplingMode = samplingMode
 
         # Get the bounding circle/box of the contour plot and colour bar
         self.segmentImage(getColourbar)
@@ -426,22 +428,37 @@ class Contour:
         elif len(nodes.shape) != 1:
             raise RuntimeError(f'Invalid shape {nodes.shape} for input nodes list. Should be either list of 2D cartesian coordinates or complex coordinates')
 
-
         # Get pixel to inlet unit mapping - assuming that the nodes capture the boundary
         ductRadius = max(abs(nodes))
         pixToUnit = ductRadius/self.boundaries[0][1]
 
         # Convert sample point coordinates from pixel units to inlet units, also from complex coords to 2D array
-        samples = np.column_stack([self.samples.real*pixToUnit, self.samples.imag*pixToUnit])
+        samples = self.samples*pixToUnit
 
-        # Get convex hull of sample points - Need to add an additional outer ring of points so that all boundary nodes get values
-        # Because the input nodes will likely be of a higher resolution than the sample points, some will lay outside the convex hull of the sample points because of circle discretisation
-        hull = ConvexHull(samples)
-        samples = np.append(samples, samples[hull.vertices,:]*1.1, 0)
-        values = np.append(self.values, self.values[hull.vertices])
+        interpolate = True
 
-        # Interpolate onto desired discretisation
-        values = griddata((samples[:,0], samples[:,1]), values, (nodes.real, nodes.imag), method=interpolation)
+        # Check if we even have to interpolate at all - ie if sampling mode 3 was used and the sampling nodes match up to the input nodes
+        if self.samplingMode == 3 and np.size(samples) == np.size(nodes):
+            # Do nodes match up with some tolerance
+            if np.sqrt(np.mean(np.abs(samples-nodes)**2)) < 1e-16:
+                interpolate = False
+
+                values = self.values
+
+        if interpolate:
+            # Convert from complex coords to 2D vectors for easier interpolation
+            samples = np.column_stack([samples.real, samples.imag])
+
+            # Get convex hull of sample points - Need to add an additional outer ring of points so that all boundary nodes get values
+            # Because the input nodes will likely be of a higher resolution than the sample points, some will lay outside the convex hull of the sample points because of circle discretisation
+            hull = ConvexHull(samples)
+            outer_layer = samples[hull.vertices,:]
+            samples = np.append(samples, outer_layer*1.1, 0)
+            values = np.append(self.values, self.values[hull.vertices])
+
+            # Interpolate onto desired discretisation
+            #print(np.sum(np.isnan(values)))
+            values = griddata((samples[:,0], samples[:,1]), values, (nodes.real, nodes.imag), method=interpolation, fill_value=111)
 
         return values
 
