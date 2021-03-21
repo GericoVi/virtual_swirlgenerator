@@ -22,7 +22,7 @@
 The generic workflow and method for generating boundary conditions using swirlgenerator functions is illustrated within **Main.py**. This serves as a showcase for the capabilities of the tool.
 
 **An example workflow is shown here:**
-The toolkit can be called similar to a library to give users more control. Allows for easier integration within existing Python workflows or for parametric control (especially relevant for the contour translation method)
+The toolkit can be called similar to a library to give users more control. Allows for easier integration within existing Python workflows or for parametric control (especially relevant for the contour translation method). The Testing folder contains examples of the swirlgenerator methods integrated into parametric studies.
 
 A list of node coordinates needs to be provided. Swirlgenerator provides capability for extracting the nodes making up the inlet plane of a mesh from the **pre.py** module.
 ```
