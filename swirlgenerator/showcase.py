@@ -8,7 +8,7 @@ import os
 import time
 
 # Get the path the repo has been cloned to
-scriptpath = os.path.split(os.path.realpath(__file__))[0]
+scriptpath = os.path.dirname(os.path.realpath(__file__))
 parentpath = os.path.dirname(scriptpath)
 
 # Mesh file path
