@@ -69,6 +69,11 @@ writeBC.writeSU2(flowfield, filename)
 
 2. Image recognition capability for receiving contour plots of tangential and radial flow angles and generating an approximation of the underlying velocity field.
 
+## Code architecture
+The code base follows an object oriented approach to facilitate expansion and integration into workflows.
+
+The main classes and their interfaces are shown in swirlgenerator-Architecture.png
+
 ## Theory
 Details of the implemented methods and their performance are reported within **Computational methods for generating swirling inlet boundary conditions for CFD** - G. Vidanes
 
