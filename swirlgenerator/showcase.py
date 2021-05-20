@@ -17,9 +17,9 @@ meshfile = os.path.join(parentpath, 'cylinder.su2')
 # Extract nodes from mesh
 nodes = pre.Input.extractMesh(meshfile)
 
-# 
-# Vortex method
-#
+##### 
+##### Vortex method
+#####
 print('Doing vortex method...')
 start = time.time()
 
@@ -32,7 +32,7 @@ vortexDefs = core.Vortices(model='lo', centres=[[0.083, 0.0], [-0.083, 0.0]], st
 flowfield_vm.computeDomain(vortexDefs, axialVel=1)
 
 # Write boundary condition file
-writeBC.writeSU2(flowfield_vm, 'twinvortex_VM.dat')
+writeBC.writeSU2(flowfield_vm, 'twinvortex_vm.dat')
 
 print(f'Elapsed time: {time.time()-start}s\n')
 
@@ -41,14 +41,14 @@ print('Making plots...')
 start = time.time()
 
 plots = post.Plots(flowfield_vm)
-plots.plotAll(pdfName='twinvortex_VM.pdf')
+plots.plotAll(pdfName='twinvortex_vm.pdf')      # Shows figures on screen if pdfName parameter is not supplied
 
 print(f'Elapsed time: {time.time()-start}s\n')
 
 
-# 
-# Contour Translation Method
-#
+##### 
+##### Contour Translation Method
+#####
 print('Doing contour translation method...')
 start = time.time()
 
@@ -84,3 +84,17 @@ plots = post.Plots(flowfield_ctm)
 plots.plotAll(pdfName='twinvortex_ctm.pdf')
 
 print(f'Elapsed time: {time.time()-start}s\n')
+
+
+
+#####
+##### Extras
+#####
+
+# Approximate a wall boundary layer
+print('Modelling wall boundary layer...')
+flowfield_vm.makeBoundaryLayer(ref_len = 5)
+
+print('Making plots...')
+plots = post.Plots(flowfield_vm)
+plots.plotAll(pdfName='twinvortex_vm_bl.pdf')
