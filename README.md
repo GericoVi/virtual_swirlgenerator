@@ -72,7 +72,8 @@ writeBC.writeSU2(flowfield, filename)
 ## Code architecture
 The code base follows an object oriented approach to facilitate expansion and integration into workflows.
 
-The main classes and their interfaces are shown in swirlgenerator-Architecture.png
+The main classes and their interfaces:
+![code architecture](swirlgenerator-Architecture.png "code architecture")
 
 ## Theory
 Details of the implemented methods and their performance are reported within **Computational methods for generating swirling inlet boundary conditions for CFD** - G. Vidanes
