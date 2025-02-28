@@ -76,7 +76,7 @@ The main classes and their interfaces:
 ![code architecture](swirlgenerator-Architecture.png "code architecture")
 
 ## Theory
-Details of the implemented methods and their performance are reported within **Computational methods for generating swirling inlet boundary conditions for CFD** - G. Vidanes
+Details of the implemented methods and their performance are reported within [**Computational methods for generating swirling inlet boundary conditions for CFD** - G. Vidanes](Vidanes_G_Computational_methods_for_generating_swirling_inlet_boundary_conditions_for_CFD.pdf)
 
 ## Limitations
 - Only su2 format for the boundary condition is currently supported by the *writeBC* modules
